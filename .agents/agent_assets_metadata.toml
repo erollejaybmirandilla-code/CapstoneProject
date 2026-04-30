@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Kjb0DnJeBf_JwlBNCERxD"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "rV1M4bzB56M_O925N-IUl"
+uri = "file://artifacts/mobile/assets/images/market-banner.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0fnzSUqVtbPXtrbZDGT9Q"
+uri = "file://artifacts/mobile/assets/images/souvenirs-hero.png"
+type = "image"
+title = "generated_image"

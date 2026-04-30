@@ -1,0 +1,131 @@
+Project Overview
+Build a cross-platform mobile e-commerce application specifically designed for local souvenir vendors operating at the Legazpi Grand Central Terminal in Legazpi City, Albay, Philippines. The platform must modernize traditional retail operations for micro, small, and medium enterprises (MSMEs) selling Bicolano souvenirs (pili nuts, abaca handicrafts, Mayon-themed memorabilia, local delicacies, etc.) by providing digital catalog management, real-time inventory tracking, secure role-based access, encrypted digital payments, and order fulfillment capabilities.
+Technology Stack Requirements
+Table
+Layer	Technology
+Mobile Frontend	React Native with TypeScript
+Development Framework	Expo (for cross-platform iOS/Android deployment)
+Backend API	PHP
+Database	MySQL
+Real-time/Cloud Services	Firebase (Firestore for real-time sync, Firebase Auth, Cloud Storage)
+Payment Integration	GCash API, Maya API, bank transfer gateways (InstaPay/PESONet)
+KYC Verification	Facial recognition SDK + basic identity document upload/validation
+Core System Modules & Functional Requirements
+1. User Management & KYC Verification
+Implement three distinct user roles with Role-Based Access Control (RBAC):
+Administrator: Full system access (inventory management, financial reports, user role management, system settings, analytics dashboard)
+Staff/Cashier: Restricted access (order fulfillment, updating order statuses, managing local deliveries/pickups, viewing assigned inventory)
+Customer: Browse catalog, add to cart, checkout, track orders, view order history
+KYC Verification Module: Before placing orders, customers must complete identity verification via:
+Facial recognition capture and matching
+Government ID upload (front and back)
+Basic identity validation (name, address, contact details)
+Note: System-level KYC only; does not require full banking compliance standards
+2. Localized Mobile Product Catalog & Cart System
+Categorized product browsing (Food Items, Handicrafts, Apparel, Keychains/Magnets, Seasonal Items)
+Product detail pages with: high-quality images, descriptions, pricing, stock availability, ingredients/expiration dates (for food items), vendor information
+Search and filter functionality (by category, price range, vendor, best-sellers)
+Shopping cart with persistent state, quantity adjustment, and real-time stock validation
+Wishlist/favorites functionality
+Seasonal product support: Flag items for holidays (Christmas, Ibalong Festival, summer tourist season) with special visibility
+3. Real-Time Inventory Synchronization & Alerts
+Automated stock deduction: Instantly update inventory across all connected devices the exact moment a purchase is completed
+Low-stock alert mechanism: Automated push notifications and in-app alerts when product quantities fall below pre-determined minimum thresholds set by vendors
+Multi-vendor inventory support: Each vendor (Groyon Store, Mayon Treats, Angeli's Souvenir Shop, etc.) manages independent inventory pools
+Inventory restock tracking: Log restock cycles (weekly/semi-digital/manual) with timestamps
+Stock conflict prevention: Prevent double-selling and out-of-stock orders through real-time validation at checkout
+4. Secure Digital Payment Integration
+Multi-payment gateway support:
+E-Wallets: GCash, Maya
+Credit/Debit Cards
+Bank Transfer (InstaPay, PESONet)
+Cash on Delivery (COD) option
+Over-the-counter payments (7-Eleven, Palawan Express)
+Encrypted transaction processing: All financial data must be encrypted before transmission and storage
+Secure authentication: OTP/PIN verification, two-factor authentication (2FA) for high-value transactions
+Payment confirmation workflow: Verify → Log → Encrypt → Confirm Order
+Automated refund system for failed transactions
+5. Order Tracking & Fulfillment Dashboard
+Order status pipeline: Pending → Preparing → Ready for Pickup → Delivered (with timestamps)
+Fulfillment Dashboard for staff/administrators to monitor and manage incoming orders
+Delivery options: Standard shipping (J&T, LBC), same-day local delivery (Lalamove/Maxim), hotel drop-off, airport pickup, store pickup
+Real-time tracking updates: Push notifications to customers at each status change
+Delivery record management: Complete audit trail of all delivery transactions with rider/delivery personnel assignment
+6. Product Analytics & Business Intelligence
+Vendor analytics dashboard:
+Best-selling items identification
+Revenue trend analysis (daily, weekly, monthly, seasonal)
+Peak buying season detection
+Inventory turnover rates
+Customer demographic insights
+Visual data representation: Charts and graphs for sales performance
+Actionable insights: Automated reports for inventory decisions and marketing strategies
+Export functionality: PDF/Excel report generation for financial and operational records
+7. Notification System
+Push notifications for:
+Order status updates
+Low-stock alerts (vendor/staff)
+Payment confirmations
+Promotional campaigns and seasonal offers
+KYC verification status
+Restock alerts for wishlisted items
+Non-Functional Requirements
+Table
+Requirement	Specification
+Platform	Mobile-only (smartphones and tablets); iOS and Android via Expo/React Native
+Connectivity	Requires stable internet connection; no offline functionality
+Security	End-to-end encryption for payments, RBAC enforcement at API level, secure Firebase Auth integration, encrypted data storage
+Performance	Real-time inventory updates within 2 seconds of transaction completion; page load times under 3 seconds
+Scalability	Support concurrent users across multiple vendor shops at Legazpi Grand Central Terminal
+Usability	Intuitive interface suitable for non-digital-native vendors; adaptive usability model for varying technical proficiency
+Localization	Philippine Peso (₱) currency, Filipino/English bilingual support, local address formats
+Compliance	DTI registration data fields, standard food labeling requirements integration, basic KYC (non-banking standard)
+Data Requirements
+Database Schema Must Include:
+Users Table: user_id, role (admin/staff/customer), RBAC permissions, KYC status, facial recognition data (encrypted), contact info
+Vendors/Shops Table: shop_id, business_name, DTI_registration, location, operating_hours, supplier_locations
+Products Table: product_id, shop_id, category, name, description, price, stock_quantity, min_threshold, images, seasonal_flags, expiration_date (if applicable)
+Inventory_Logs Table: log_id, product_id, transaction_type (sale/restock/adjustment), quantity_change, timestamp, user_id
+Orders Table: order_id, customer_id, shop_id, items (JSON), total_amount, payment_method, payment_status, order_status, delivery_method, created_at, updated_at
+Order_Items Table: order_item_id, order_id, product_id, quantity, price_at_purchase
+Delivery_Records Table: delivery_id, order_id, delivery_method, status, tracking_info, assigned_rider, timestamps
+Payments Table: payment_id, order_id, gateway, amount, encrypted_transaction_data, status, timestamp
+Analytics Table: Aggregated sales data, vendor_performance_metrics, peak_season_data
+KYC_Records Table: kyc_id, user_id, id_type, id_number, verification_status, facial_recognition_match_score, submitted_at, verified_at
+Integration Requirements
+Firebase Integration: Real-time database listeners for inventory sync, cloud messaging for push notifications, cloud storage for product images and KYC documents
+Payment Gateway APIs: GCash SDK, Maya API, bank transfer APIs with webhook support for payment status updates
+Facial Recognition SDK: For KYC verification (e.g., ML Kit, AWS Rekognition, or similar)
+SMS/Email Service: For OTP delivery and transactional notifications
+Development Methodology
+Follow Agile methodology with iterative sprints:
+Sprint 1: User management, RBAC, KYC framework
+Sprint 2: Product catalog, cart system, search/filter
+Sprint 3: Real-time inventory system with Firebase sync and alert mechanism
+Sprint 4: Payment gateway integration with encryption
+Sprint 5: Order tracking, fulfillment dashboard, delivery records
+Sprint 6: Analytics dashboard and reporting
+Sprint 7: Integration testing, UAT with selected vendors (Groyon Store, Mayon Treats, Angeli's)
+Sprint 8: Deployment, training, and maintenance setup
+Explicit Exclusions (Do NOT Build)
+Desktop or web-based admin panels (mobile-only for all roles)
+Offline mode or local data persistence
+AI-based product recommendation engine
+Nationwide or international shipping logistics
+Advanced predictive analytics (machine learning forecasting)
+Full banking-standard KYC compliance
+Integration with large-scale e-commerce platforms (Shopee, Lazada)
+Success Criteria
+Real-time inventory accuracy across all connected devices
+Secure payment processing with zero data breaches
+Successful RBAC enforcement preventing unauthorized access
+Positive usability testing results from souvenir shop owners and customers
+Measurable reduction in stock discrepancies and manual inventory errors
+Seamless order fulfillment workflow from purchase to delivery/pickup
+Target Users for Testing & Deployment
+Groyon Store (micro-enterprise, 1 employee, manual inventory)
+Mayon Treats (established, 20 employees, semi-digital inventory)
+Angeli's Souvenir Shop (micro-enterprise, 2 employees, handwritten logs)
+Domestic and international tourists purchasing local souvenirs
+Legazpi City tourism stakeholders
+Build this system to support the UN Sustainable Development Goals 8 (Decent Work and Economic Growth) and 9 (Industry, Innovation, and Infrastructure) by empowering local MSMEs through digital transformation.
