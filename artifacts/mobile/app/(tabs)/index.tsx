@@ -16,42 +16,38 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { useStore, ProductCategory } from "@/context/StoreContext";
+import { useStore } from "@/context/StoreContext";
 import { ProductCard } from "@/components/ProductCard";
-
-const CATEGORIES: { label: ProductCategory | "All"; icon: string }[] = [
-  { label: "All", icon: "grid" },
-  { label: "Food & Delicacies", icon: "coffee" },
-  { label: "Handicrafts", icon: "tool" },
-  { label: "Apparel", icon: "tag" },
-  { label: "Keychains & Magnets", icon: "key" },
-  { label: "Seasonal Items", icon: "sun" },
-];
 
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { products, vendors, getLowStockProducts } = useStore();
+  const { products, vendors, inventory } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | "All">("All");
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string>("All");
+
+  const lowStockCount = inventory.filter(i => i.stock <= 10).length;
 
   const filteredProducts = products.filter((p) => {
     const matchSearch =
       !searchQuery ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.vendorName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchCategory = selectedCategory === "All" || p.category === selectedCategory;
+      (p.vendorName ?? "").toLowerCase().includes(searchQuery.toLowerCase());
+    const matchCategory =
+      selectedCategoryName === "All" ||
+      (p.categoryName ?? "").toLowerCase().includes(selectedCategoryName.toLowerCase());
     return matchSearch && matchCategory;
   });
 
   const bestSellers = products.filter((p) => p.isBestSeller);
   const seasonalItems = products.filter((p) => p.isSeasonal);
-  const lowStock = getLowStockProducts(user?.vendorId);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : 0;
+
+  const categoryList = ["All", "Food & Delicacies", "Handicrafts", "Home Decor", "Clothing", "Accessories"];
 
   return (
     <View style={[s(colors).container, { paddingBottom: bottomInset }]}>
@@ -69,7 +65,7 @@ export default function HomeScreen() {
             onPress={() => router.push("/notifications" as any)}
           >
             <Feather name="bell" size={22} color={colors.foreground} />
-            {(user.role !== "customer" && lowStock.length > 0) && (
+            {(user.role !== "customer" && lowStockCount > 0) && (
               <View style={s(colors).notifDot} />
             )}
           </Pressable>
@@ -95,14 +91,14 @@ export default function HomeScreen() {
         </View>
 
         {/* Admin/Staff Alert Banner */}
-        {(user?.role === "admin" || user?.role === "staff") && lowStock.length > 0 && (
+        {(user?.role === "admin" || user?.role === "staff") && lowStockCount > 0 && (
           <Pressable
             style={s(colors).alertBanner}
             onPress={() => router.push("/(tabs)/inventory" as any)}
           >
             <Feather name="alert-triangle" size={16} color={colors.warning} />
             <Text style={s(colors).alertText}>
-              {lowStock.length} product{lowStock.length > 1 ? "s" : ""} running low on stock
+              {lowStockCount} product{lowStockCount > 1 ? "s" : ""} running low on stock
             </Text>
             <Feather name="chevron-right" size={16} color={colors.warning} />
           </Pressable>
@@ -129,27 +125,22 @@ export default function HomeScreen() {
           <Text style={s(colors).sectionTitle}>Browse by Category</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
             <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16 }}>
-              {CATEGORIES.map((cat) => (
+              {categoryList.map((cat) => (
                 <Pressable
-                  key={cat.label}
+                  key={cat}
                   style={[
                     s(colors).catChip,
-                    selectedCategory === cat.label && s(colors).catChipActive,
+                    selectedCategoryName === cat && s(colors).catChipActive,
                   ]}
-                  onPress={() => setSelectedCategory(cat.label as any)}
+                  onPress={() => setSelectedCategoryName(cat)}
                 >
-                  <Feather
-                    name={cat.icon as any}
-                    size={14}
-                    color={selectedCategory === cat.label ? colors.primaryForeground : colors.mutedForeground}
-                  />
                   <Text
                     style={[
                       s(colors).catLabel,
-                      selectedCategory === cat.label && s(colors).catLabelActive,
+                      selectedCategoryName === cat && s(colors).catLabelActive,
                     ]}
                   >
-                    {cat.label}
+                    {cat}
                   </Text>
                 </Pressable>
               ))}
@@ -158,7 +149,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Best Sellers */}
-        {!searchQuery && selectedCategory === "All" && bestSellers.length > 0 && (
+        {!searchQuery && selectedCategoryName === "All" && bestSellers.length > 0 && (
           <View style={s(colors).section}>
             <View style={s(colors).sectionHeader}>
               <Text style={s(colors).sectionTitle}>Best Sellers</Text>
@@ -179,7 +170,7 @@ export default function HomeScreen() {
         )}
 
         {/* Seasonal Items */}
-        {!searchQuery && selectedCategory === "All" && seasonalItems.length > 0 && (
+        {!searchQuery && selectedCategoryName === "All" && seasonalItems.length > 0 && (
           <View style={s(colors).section}>
             <View style={s(colors).sectionHeader}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -202,7 +193,7 @@ export default function HomeScreen() {
         )}
 
         {/* Vendors */}
-        {!searchQuery && selectedCategory === "All" && (
+        {!searchQuery && selectedCategoryName === "All" && (
           <View style={s(colors).section}>
             <Text style={s(colors).sectionTitle}>Our Vendors</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
@@ -233,12 +224,12 @@ export default function HomeScreen() {
         <View style={[s(colors).section, { paddingBottom: 0 }]}>
           <View style={s(colors).sectionHeader}>
             <Text style={s(colors).sectionTitle}>
-              {searchQuery ? `Results for "${searchQuery}"` : selectedCategory === "All" ? "All Products" : selectedCategory}
+              {searchQuery ? `Results for "${searchQuery}"` : selectedCategoryName === "All" ? "All Products" : selectedCategoryName}
             </Text>
             <Text style={s(colors).countText}>{filteredProducts.length} items</Text>
           </View>
           <View style={s(colors).productsGrid}>
-            {filteredProducts.map((item, idx) => (
+            {filteredProducts.map((item) => (
               <View key={item.id} style={s(colors).productGridItem}>
                 <ProductCard product={item} />
               </View>
@@ -349,7 +340,7 @@ const s = (colors: ReturnType<typeof useColors>) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 12,
+      paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 20,
       backgroundColor: colors.card,
@@ -358,7 +349,7 @@ const s = (colors: ReturnType<typeof useColors>) =>
     },
     catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     catLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
-    catLabelActive: { color: colors.primaryForeground },
+    catLabelActive: { color: "#fff" },
     vendorCard: {
       backgroundColor: colors.card,
       borderRadius: 12,

@@ -1,463 +1,238 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+  api,
+  Product, Vendor, Category, Order, InventoryItem,
+  AppNotification, WishlistItem, AnalyticsSummary, KycVerification
+} from "@/lib/api";
+import { useAuth } from "./AuthContext";
 
-export type ProductCategory =
-  | "Food & Delicacies"
-  | "Handicrafts"
-  | "Apparel"
-  | "Keychains & Magnets"
-  | "Seasonal Items";
-
-export interface Product {
-  id: string;
-  vendorId: string;
-  vendorName: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  minThreshold: number;
-  category: ProductCategory;
-  images: string[];
-  isBestSeller: boolean;
-  isSeasonal: boolean;
-  seasonalTag?: string;
-  ingredients?: string;
-  expirationDate?: string;
-  rating: number;
-  reviewCount: number;
-}
-
-export interface Vendor {
-  id: string;
-  name: string;
-  description: string;
-  logo?: string;
-  location: string;
-  operatingHours: string;
-  rating: number;
-  totalProducts: number;
-  dtiRegistration: string;
-}
-
-export interface Order {
-  id: string;
-  customerId: string;
-  customerName: string;
-  vendorId: string;
-  vendorName: string;
-  items: OrderItem[];
-  totalAmount: number;
-  paymentMethod: string;
-  paymentStatus: "pending" | "paid" | "failed" | "refunded";
-  orderStatus: "pending" | "preparing" | "ready" | "delivered" | "cancelled";
-  deliveryMethod: string;
-  deliveryAddress?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface OrderItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-export interface WishlistItem {
-  productId: string;
-  addedAt: string;
-}
-
-export interface InventoryLog {
-  id: string;
-  productId: string;
-  productName: string;
-  type: "sale" | "restock" | "adjustment";
-  quantityChange: number;
-  timestamp: string;
-  userId: string;
-}
-
-const VENDORS: Vendor[] = [
-  {
-    id: "v1",
-    name: "Groyon Store",
-    description: "Premium pili nuts and Bicol delicacies since 1982",
-    location: "Stall 12, Ground Floor",
-    operatingHours: "7:00 AM - 8:00 PM",
-    rating: 4.8,
-    totalProducts: 12,
-    dtiRegistration: "DTI-2024-001234",
-  },
-  {
-    id: "v2",
-    name: "Mayon Treats",
-    description: "Your one-stop shop for authentic Bicolano pasalubong",
-    location: "Stalls 5-7, Ground Floor",
-    operatingHours: "6:00 AM - 9:00 PM",
-    rating: 4.6,
-    totalProducts: 28,
-    dtiRegistration: "DTI-2024-005678",
-  },
-  {
-    id: "v3",
-    name: "Angeli's Souvenir Shop",
-    description: "Handcrafted abaca gifts and Mayon-inspired memorabilia",
-    location: "Stall 23, Second Floor",
-    operatingHours: "8:00 AM - 7:00 PM",
-    rating: 4.9,
-    totalProducts: 18,
-    dtiRegistration: "DTI-2024-009012",
-  },
-];
-
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: "p1",
-    vendorId: "v1",
-    vendorName: "Groyon Store",
-    name: "Premium Pili Nuts (500g)",
-    description: "Fresh roasted pili nuts from the volcanic slopes of Bicol. Rich, buttery flavor with a satisfying crunch. Perfect pasalubong for family and friends.",
-    price: 285,
-    stock: 45,
-    minThreshold: 10,
-    category: "Food & Delicacies",
-    images: [],
-    isBestSeller: true,
-    isSeasonal: false,
-    rating: 4.9,
-    reviewCount: 234,
-    ingredients: "Pili nuts, coconut oil, sea salt",
-    expirationDate: "2025-06-30",
-  },
-  {
-    id: "p2",
-    vendorId: "v1",
-    vendorName: "Groyon Store",
-    name: "Spicy Pili Nuts (250g)",
-    description: "Fiery Bicol-style pili nuts with labuyo chili and vinegar glaze. A bold snack for spice lovers.",
-    price: 175,
-    stock: 8,
-    minThreshold: 10,
-    category: "Food & Delicacies",
-    images: [],
-    isBestSeller: false,
-    isSeasonal: false,
-    rating: 4.7,
-    reviewCount: 89,
-    ingredients: "Pili nuts, labuyo chili, vinegar, salt",
-    expirationDate: "2025-05-15",
-  },
-  {
-    id: "p3",
-    vendorId: "v2",
-    vendorName: "Mayon Treats",
-    name: "Mayon Volcano Keychain",
-    description: "Hand-painted ceramic Mayon Volcano keychain. Iconic souvenir from Legazpi City, Albay.",
-    price: 95,
-    stock: 120,
-    minThreshold: 20,
-    category: "Keychains & Magnets",
-    images: [],
-    isBestSeller: true,
-    isSeasonal: false,
-    rating: 4.5,
-    reviewCount: 456,
-  },
-  {
-    id: "p4",
-    vendorId: "v3",
-    vendorName: "Angeli's Souvenir Shop",
-    name: "Abaca Woven Bag",
-    description: "Authentic handwoven abaca bag crafted by Bicolano artisans. Durable, eco-friendly, and uniquely Filipino.",
-    price: 650,
-    stock: 15,
-    minThreshold: 5,
-    category: "Handicrafts",
-    images: [],
-    isBestSeller: true,
-    isSeasonal: false,
-    rating: 4.9,
-    reviewCount: 78,
-  },
-  {
-    id: "p5",
-    vendorId: "v2",
-    vendorName: "Mayon Treats",
-    name: "Bicol Express Instant Pack (3-pack)",
-    description: "Ready-to-cook authentic Bicol Express with coconut milk and pork. Bring the heat of Bicol to your kitchen.",
-    price: 220,
-    stock: 60,
-    minThreshold: 15,
-    category: "Food & Delicacies",
-    images: [],
-    isBestSeller: false,
-    isSeasonal: false,
-    rating: 4.6,
-    reviewCount: 112,
-    ingredients: "Pork, coconut milk, labuyo chili, shrimp paste, garlic",
-    expirationDate: "2025-08-01",
-  },
-  {
-    id: "p6",
-    vendorId: "v3",
-    vendorName: "Angeli's Souvenir Shop",
-    name: "Ibalong Festival Shirt",
-    description: "Limited edition Ibalong Festival t-shirt featuring traditional Bicolano motifs. Available in S, M, L, XL.",
-    price: 350,
-    stock: 30,
-    minThreshold: 8,
-    category: "Apparel",
-    images: [],
-    isBestSeller: false,
-    isSeasonal: true,
-    seasonalTag: "Ibalong Festival",
-    rating: 4.4,
-    reviewCount: 45,
-  },
-  {
-    id: "p7",
-    vendorId: "v2",
-    vendorName: "Mayon Treats",
-    name: "Legazpi City Magnet Set (5pcs)",
-    description: "Set of 5 colorful refrigerator magnets featuring Legazpi landmarks: Mayon Volcano, Cagsawa Ruins, Sumlang Lake, and more.",
-    price: 150,
-    stock: 85,
-    minThreshold: 20,
-    category: "Keychains & Magnets",
-    images: [],
-    isBestSeller: false,
-    isSeasonal: false,
-    rating: 4.3,
-    reviewCount: 167,
-  },
-  {
-    id: "p8",
-    vendorId: "v1",
-    vendorName: "Groyon Store",
-    name: "Pili Brittle (300g)",
-    description: "Traditional caramelized pili nut brittle. Crunchy, sweet, and addictive. A classic Bicol pasalubong.",
-    price: 195,
-    stock: 3,
-    minThreshold: 10,
-    category: "Food & Delicacies",
-    images: [],
-    isBestSeller: true,
-    isSeasonal: false,
-    rating: 4.8,
-    reviewCount: 203,
-    ingredients: "Pili nuts, sugar, butter",
-    expirationDate: "2025-04-30",
-  },
-  {
-    id: "p9",
-    vendorId: "v3",
-    vendorName: "Angeli's Souvenir Shop",
-    name: "Abaca Place Mat Set (6pcs)",
-    description: "Premium abaca woven placemats. Natural fiber, eco-friendly, adds authentic Filipino charm to any dining table.",
-    price: 480,
-    stock: 20,
-    minThreshold: 5,
-    category: "Handicrafts",
-    images: [],
-    isBestSeller: false,
-    isSeasonal: false,
-    rating: 4.7,
-    reviewCount: 34,
-  },
-  {
-    id: "p10",
-    vendorId: "v2",
-    vendorName: "Mayon Treats",
-    name: "Pinangat sa Gata (Ready-to-Cook)",
-    description: "Classic Bicolano Pinangat: taro leaves with pork and coconut milk. Authentic Bicol recipe. Serves 4-6.",
-    price: 310,
-    stock: 25,
-    minThreshold: 8,
-    category: "Food & Delicacies",
-    images: [],
-    isBestSeller: false,
-    isSeasonal: false,
-    rating: 4.5,
-    reviewCount: 67,
-    ingredients: "Taro leaves, pork, coconut milk, shrimp paste, spices",
-    expirationDate: "2025-05-01",
-  },
-];
-
-const INITIAL_ORDERS: Order[] = [
-  {
-    id: "o1",
-    customerId: "u3",
-    customerName: "Sarah Chen",
-    vendorId: "v1",
-    vendorName: "Groyon Store",
-    items: [
-      { productId: "p1", name: "Premium Pili Nuts (500g)", price: 285, quantity: 2 },
-      { productId: "p8", name: "Pili Brittle (300g)", price: 195, quantity: 1 },
-    ],
-    totalAmount: 765,
-    paymentMethod: "GCash",
-    paymentStatus: "paid",
-    orderStatus: "preparing",
-    deliveryMethod: "Store Pickup",
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    updatedAt: new Date(Date.now() - 1800000).toISOString(),
-  },
-  {
-    id: "o2",
-    customerId: "u3",
-    customerName: "Sarah Chen",
-    vendorId: "v3",
-    vendorName: "Angeli's Souvenir Shop",
-    items: [
-      { productId: "p4", name: "Abaca Woven Bag", price: 650, quantity: 1 },
-    ],
-    totalAmount: 650,
-    paymentMethod: "Maya",
-    paymentStatus: "paid",
-    orderStatus: "delivered",
-    deliveryMethod: "J&T Express",
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-];
-
-interface StoreContextType {
+type StoreContextType = {
   products: Product[];
   vendors: Vendor[];
+  categories: Category[];
   orders: Order[];
+  inventory: InventoryItem[];
+  notifications: AppNotification[];
   wishlist: WishlistItem[];
-  inventoryLogs: InventoryLog[];
-  addToWishlist: (productId: string) => void;
-  removeFromWishlist: (productId: string) => void;
-  isWishlisted: (productId: string) => boolean;
-  placeOrder: (order: Omit<Order, "id" | "createdAt" | "updatedAt">) => Order;
-  updateOrderStatus: (orderId: string, status: Order["orderStatus"]) => void;
-  updateStock: (productId: string, delta: number, type: InventoryLog["type"], userId: string) => void;
-  getVendorOrders: (vendorId: string) => Order[];
-  getCustomerOrders: (customerId: string) => Order[];
-  getLowStockProducts: (vendorId?: string) => Product[];
-}
+  analytics: AnalyticsSummary | null;
+  kycStatus: KycVerification | null;
 
-const StoreContext = createContext<StoreContextType | undefined>(undefined);
+  isLoadingProducts: boolean;
+  isLoadingOrders: boolean;
+
+  fetchProducts: (params?: Record<string, string>) => Promise<Product[]>;
+  fetchProduct: (id: string) => Promise<Product | null>;
+  fetchVendors: () => Promise<void>;
+  fetchCategories: () => Promise<void>;
+  fetchOrders: (params?: Record<string, string>) => Promise<void>;
+  fetchInventory: (params?: Record<string, string>) => Promise<void>;
+  fetchNotifications: () => Promise<void>;
+  fetchWishlist: () => Promise<void>;
+  fetchAnalytics: (period?: string) => Promise<void>;
+  fetchKycStatus: () => Promise<void>;
+
+  placeOrder: (orderData: {
+    paymentMethod: string;
+    deliveryMethod: string;
+    deliveryAddress?: string | null;
+    notes?: string | null;
+    referenceNumber?: string | null;
+    items: { productId: string; quantity: number }[];
+  }) => Promise<Order>;
+
+  updateOrderStatus: (orderId: string, status: string) => Promise<void>;
+  restockProduct: (productId: string, quantity: number, notes?: string) => Promise<void>;
+  addToWishlist: (productId: string) => Promise<void>;
+  removeFromWishlist: (productId: string) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  submitKyc: (data: {
+    firstName: string; lastName: string; birthDate: string;
+    address: string; idType: string; idNumber: string;
+  }) => Promise<void>;
+};
+
+const StoreContext = createContext<StoreContextType | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const { user } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
-  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [kycStatus, setKycStatus] = useState<KycVerification | null>(null);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem("@wishlist").then((d) => {
-      if (d) setWishlist(JSON.parse(d));
-    });
-    AsyncStorage.getItem("@orders").then((d) => {
-      if (d) setOrders(JSON.parse(d));
-    });
-    AsyncStorage.getItem("@inventory_logs").then((d) => {
-      if (d) setInventoryLogs(JSON.parse(d));
-    });
+    fetchCategories();
+    fetchVendors();
+    fetchProducts();
   }, []);
 
-  const addToWishlist = (productId: string) => {
-    const item: WishlistItem = { productId, addedAt: new Date().toISOString() };
-    const updated = [...wishlist.filter((w) => w.productId !== productId), item];
-    setWishlist(updated);
-    AsyncStorage.setItem("@wishlist", JSON.stringify(updated));
-  };
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      fetchWishlist();
+      fetchOrders();
+      if (user.role === "admin" || user.role === "staff") {
+        fetchInventory();
+        fetchAnalytics();
+      }
+      if (user.kycStatus !== "none") {
+        fetchKycStatus();
+      }
+    }
+  }, [user?.id]);
 
-  const removeFromWishlist = (productId: string) => {
-    const updated = wishlist.filter((w) => w.productId !== productId);
-    setWishlist(updated);
-    AsyncStorage.setItem("@wishlist", JSON.stringify(updated));
-  };
+  const fetchProducts = useCallback(async (params: Record<string, string> = {}) => {
+    setIsLoadingProducts(true);
+    try {
+      const query = new URLSearchParams(params).toString();
+      const data = await api.get<{ products: Product[]; total: number }>(`/products${query ? `?${query}` : ""}`);
+      if (!params.categoryId && !params.vendorId && !params.search) {
+        setProducts(data.products);
+      }
+      return data.products;
+    } catch {
+      return [];
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, []);
 
-  const isWishlisted = (productId: string) =>
-    wishlist.some((w) => w.productId === productId);
+  const fetchProduct = useCallback(async (id: string): Promise<Product | null> => {
+    try {
+      return await api.get<Product>(`/products/${id}`);
+    } catch {
+      return null;
+    }
+  }, []);
 
-  const placeOrder = (data: Omit<Order, "id" | "createdAt" | "updatedAt">): Order => {
-    const now = new Date().toISOString();
-    const order: Order = {
-      ...data,
-      id: "o" + Date.now().toString(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    const updated = [order, ...orders];
-    setOrders(updated);
-    AsyncStorage.setItem("@orders", JSON.stringify(updated));
+  const fetchVendors = useCallback(async () => {
+    try {
+      const data = await api.get<Vendor[]>("/vendors");
+      setVendors(data);
+    } catch {}
+  }, []);
 
-    // Deduct stock
-    data.items.forEach((item) => {
-      updateStock(item.productId, -item.quantity, "sale", data.customerId);
-    });
+  const fetchCategories = useCallback(async () => {
+    try {
+      const data = await api.get<Category[]>("/categories");
+      setCategories(data);
+    } catch {}
+  }, []);
 
+  const fetchOrders = useCallback(async (params: Record<string, string> = {}) => {
+    setIsLoadingOrders(true);
+    try {
+      const query = new URLSearchParams(params).toString();
+      const data = await api.get<{ orders: Order[] }>(`/orders${query ? `?${query}` : ""}`);
+      setOrders(data.orders);
+    } catch {} finally {
+      setIsLoadingOrders(false);
+    }
+  }, []);
+
+  const fetchInventory = useCallback(async (params: Record<string, string> = {}) => {
+    try {
+      const query = new URLSearchParams(params).toString();
+      const data = await api.get<InventoryItem[]>(`/inventory${query ? `?${query}` : ""}`);
+      setInventory(data);
+    } catch {}
+  }, []);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = await api.get<AppNotification[]>("/notifications");
+      setNotifications(data);
+    } catch {}
+  }, []);
+
+  const fetchWishlist = useCallback(async () => {
+    try {
+      const data = await api.get<WishlistItem[]>("/wishlist");
+      setWishlist(data);
+    } catch {}
+  }, []);
+
+  const fetchAnalytics = useCallback(async (period = "month") => {
+    try {
+      const data = await api.get<AnalyticsSummary>(`/analytics/summary?period=${period}`);
+      setAnalytics(data);
+    } catch {}
+  }, []);
+
+  const fetchKycStatus = useCallback(async () => {
+    try {
+      const data = await api.get<KycVerification>("/kyc/status");
+      setKycStatus(data);
+    } catch (e: any) {
+      if (e.message?.includes("404") || e.message?.includes("No KYC")) {
+        setKycStatus(null);
+      }
+    }
+  }, []);
+
+  const placeOrder = useCallback(async (orderData: any): Promise<Order> => {
+    const order = await api.post<Order>("/orders", orderData);
+    setOrders(prev => [order, ...prev]);
     return order;
-  };
+  }, []);
 
-  const updateOrderStatus = (orderId: string, status: Order["orderStatus"]) => {
-    const updated = orders.map((o) =>
-      o.id === orderId ? { ...o, orderStatus: status, updatedAt: new Date().toISOString() } : o
-    );
-    setOrders(updated);
-    AsyncStorage.setItem("@orders", JSON.stringify(updated));
-  };
+  const updateOrderStatus = useCallback(async (orderId: string, status: string) => {
+    const updated = await api.put<Order>(`/orders/${orderId}/status`, { status });
+    setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+  }, []);
 
-  const updateStock = (productId: string, delta: number, type: InventoryLog["type"], userId: string) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId
-          ? { ...p, stock: Math.max(0, p.stock + delta) }
-          : p
-      )
-    );
-    const log: InventoryLog = {
-      id: "il" + Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      productId,
-      productName: products.find((p) => p.id === productId)?.name ?? "",
-      type,
-      quantityChange: delta,
-      timestamp: new Date().toISOString(),
-      userId,
-    };
-    const updatedLogs = [log, ...inventoryLogs];
-    setInventoryLogs(updatedLogs);
-    AsyncStorage.setItem("@inventory_logs", JSON.stringify(updatedLogs));
-  };
+  const restockProduct = useCallback(async (productId: string, quantity: number, notes?: string) => {
+    const updated = await api.post<InventoryItem>(`/inventory/${productId}/restock`, { quantity, notes });
+    setInventory(prev => prev.map(i => i.productId === productId ? updated : i));
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: updated.stock } : p));
+  }, []);
 
-  const getVendorOrders = (vendorId: string) =>
-    orders.filter((o) => o.vendorId === vendorId);
+  const addToWishlist = useCallback(async (productId: string) => {
+    await api.post("/wishlist", { productId });
+    await fetchWishlist();
+  }, [fetchWishlist]);
 
-  const getCustomerOrders = (customerId: string) =>
-    orders.filter((o) => o.customerId === customerId);
+  const removeFromWishlist = useCallback(async (productId: string) => {
+    await api.delete(`/wishlist/${productId}`);
+    setWishlist(prev => prev.filter(w => w.productId !== productId));
+  }, []);
 
-  const getLowStockProducts = (vendorId?: string) =>
-    products.filter((p) => {
-      const isLow = p.stock <= p.minThreshold;
-      return vendorId ? isLow && p.vendorId === vendorId : isLow;
-    });
+  const markNotificationRead = useCallback(async (id: string) => {
+    await api.put(`/notifications/${id}/read`);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  }, []);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    await api.put("/notifications/read-all");
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  }, []);
+
+  const submitKyc = useCallback(async (data: any) => {
+    const result = await api.post<KycVerification>("/kyc/submit", data);
+    setKycStatus(result);
+  }, []);
 
   return (
-    <StoreContext.Provider
-      value={{
-        products,
-        vendors: VENDORS,
-        orders,
-        wishlist,
-        inventoryLogs,
-        addToWishlist,
-        removeFromWishlist,
-        isWishlisted,
-        placeOrder,
-        updateOrderStatus,
-        updateStock,
-        getVendorOrders,
-        getCustomerOrders,
-        getLowStockProducts,
-      }}
-    >
+    <StoreContext.Provider value={{
+      products, vendors, categories, orders, inventory,
+      notifications, wishlist, analytics, kycStatus,
+      isLoadingProducts, isLoadingOrders,
+      fetchProducts, fetchProduct, fetchVendors, fetchCategories,
+      fetchOrders, fetchInventory, fetchNotifications, fetchWishlist,
+      fetchAnalytics, fetchKycStatus,
+      placeOrder, updateOrderStatus, restockProduct,
+      addToWishlist, removeFromWishlist,
+      markNotificationRead, markAllNotificationsRead,
+      submitKyc,
+    }}>
       {children}
     </StoreContext.Provider>
   );
@@ -468,3 +243,5 @@ export function useStore() {
   if (!ctx) throw new Error("useStore must be used within StoreProvider");
   return ctx;
 }
+
+export type { Product, Vendor, Category, Order, InventoryItem, AppNotification, WishlistItem };

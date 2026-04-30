@@ -12,16 +12,16 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { useStore, ProductCategory } from "@/context/StoreContext";
+import { useStore } from "@/context/StoreContext";
 import { ProductCard } from "@/components/ProductCard";
 
-const CATEGORIES: Array<ProductCategory | "All"> = [
+const CATEGORIES = [
   "All",
   "Food & Delicacies",
   "Handicrafts",
-  "Apparel",
-  "Keychains & Magnets",
-  "Seasonal Items",
+  "Home Decor",
+  "Clothing",
+  "Accessories",
 ];
 
 type SortOption = "name" | "price_asc" | "price_desc" | "rating" | "stock";
@@ -32,7 +32,7 @@ export default function CatalogScreen() {
   const { products, vendors } = useStore();
 
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<ProductCategory | "All">("All");
+  const [category, setCategory] = useState("All");
   const [vendorFilter, setVendorFilter] = useState("all");
   const [sort, setSort] = useState<SortOption>("rating");
   const [showFilters, setShowFilters] = useState(false);
@@ -45,7 +45,7 @@ export default function CatalogScreen() {
   const filtered = products
     .filter((p) => {
       if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.vendorName.toLowerCase().includes(search.toLowerCase())) return false;
-      if (category !== "All" && p.category !== category) return false;
+      if (category !== "All" && (p.categoryName ?? "").toLowerCase() !== category.toLowerCase()) return false;
       if (vendorFilter !== "all" && p.vendorId !== vendorFilter) return false;
       if (maxPrice && p.price > maxPrice) return false;
       if (showBestSellers && !p.isBestSeller) return false;

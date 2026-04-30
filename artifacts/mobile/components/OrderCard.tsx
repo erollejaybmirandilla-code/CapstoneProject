@@ -3,45 +3,48 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { Order } from "@/context/StoreContext";
-import { useRouter } from "expo-router";
 
-const STATUS_CONFIG = {
-  pending: { label: "Pending", color: "#D97706", icon: "clock" as const },
-  preparing: { label: "Preparing", color: "#2563EB", icon: "package" as const },
-  ready: { label: "Ready for Pickup", color: "#059669", icon: "check-circle" as const },
-  delivered: { label: "Delivered", color: "#6B7280", icon: "check-square" as const },
-  cancelled: { label: "Cancelled", color: "#DC2626", icon: "x-circle" as const },
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  pending: { label: "Pending", color: "#D97706", icon: "clock" },
+  confirmed: { label: "Confirmed", color: "#2563EB", icon: "check" },
+  preparing: { label: "Preparing", color: "#7C3AED", icon: "package" },
+  ready: { label: "Ready for Pickup", color: "#059669", icon: "check-circle" },
+  out_for_delivery: { label: "Out for Delivery", color: "#0284C7", icon: "truck" },
+  delivered: { label: "Delivered", color: "#6B7280", icon: "check-square" },
+  cancelled: { label: "Cancelled", color: "#DC2626", icon: "x-circle" },
 };
 
-const PAYMENT_STATUS_CONFIG = {
-  pending: { label: "Pending Payment", color: "#D97706" },
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  unpaid: { label: "Unpaid", color: "#D97706" },
   paid: { label: "Paid", color: "#059669" },
-  failed: { label: "Payment Failed", color: "#DC2626" },
   refunded: { label: "Refunded", color: "#6B7280" },
 };
 
 interface Props {
   order: Order;
   showActions?: boolean;
-  onUpdateStatus?: (status: Order["orderStatus"]) => void;
+  onUpdateStatus?: (status: string) => void;
 }
 
 export function OrderCard({ order, showActions, onUpdateStatus }: Props) {
   const colors = useColors();
-  const router = useRouter();
-  const statusConfig = STATUS_CONFIG[order.orderStatus];
-  const payConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus];
+  const statusConfig = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
+  const payConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus] ?? PAYMENT_STATUS_CONFIG.unpaid;
 
-  const nextStatus: Record<string, Order["orderStatus"]> = {
-    pending: "preparing",
+  const nextStatus: Record<string, string> = {
+    pending: "confirmed",
+    confirmed: "preparing",
     preparing: "ready",
-    ready: "delivered",
+    ready: "out_for_delivery",
+    out_for_delivery: "delivered",
   };
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
+
+  const vendorName = order.items?.[0]?.vendorName ?? "";
 
   return (
     <View style={styles(colors).card}>
@@ -62,8 +65,8 @@ export function OrderCard({ order, showActions, onUpdateStatus }: Props) {
 
       <View style={styles(colors).itemsSection}>
         {order.items.slice(0, 2).map((item) => (
-          <View key={item.productId} style={styles(colors).itemRow}>
-            <Text style={styles(colors).itemName} numberOfLines={1}>{item.name}</Text>
+          <View key={item.id} style={styles(colors).itemRow}>
+            <Text style={styles(colors).itemName} numberOfLines={1}>{item.productName}</Text>
             <Text style={styles(colors).itemQty}>x{item.quantity}</Text>
             <Text style={styles(colors).itemPrice}>₱{(item.price * item.quantity).toLocaleString()}</Text>
           </View>
@@ -77,24 +80,24 @@ export function OrderCard({ order, showActions, onUpdateStatus }: Props) {
 
       <View style={styles(colors).footer}>
         <View>
-          <Text style={styles(colors).vendorName}>{order.vendorName}</Text>
+          {vendorName ? <Text style={styles(colors).vendorName}>{vendorName}</Text> : null}
           <View style={[styles(colors).payBadge, { backgroundColor: payConfig.color + "15" }]}>
             <Text style={[styles(colors).payText, { color: payConfig.color }]}>{payConfig.label}</Text>
           </View>
         </View>
         <View style={styles(colors).totalWrap}>
           <Text style={styles(colors).totalLabel}>Total</Text>
-          <Text style={styles(colors).totalAmount}>₱{order.totalAmount.toLocaleString()}</Text>
+          <Text style={styles(colors).totalAmount}>₱{order.total.toLocaleString()}</Text>
         </View>
       </View>
 
-      {showActions && onUpdateStatus && nextStatus[order.orderStatus] && (
+      {showActions && onUpdateStatus && nextStatus[order.status] && (
         <Pressable
           style={({ pressed }) => [styles(colors).actionBtn, pressed && { opacity: 0.8 }]}
-          onPress={() => onUpdateStatus(nextStatus[order.orderStatus]!)}
+          onPress={() => onUpdateStatus(nextStatus[order.status]!)}
         >
           <Text style={styles(colors).actionText}>
-            Mark as {STATUS_CONFIG[nextStatus[order.orderStatus]!]?.label}
+            Mark as {STATUS_CONFIG[nextStatus[order.status]!]?.label}
           </Text>
           <Feather name="arrow-right" size={16} color="#fff" />
         </Pressable>
@@ -107,7 +110,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     card: {
       backgroundColor: colors.card,
-      borderRadius: colors.radius,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: colors.border,
       overflow: "hidden",

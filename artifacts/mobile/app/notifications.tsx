@@ -8,85 +8,42 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 
-interface Notification {
-  id: string;
-  title: string;
-  body: string;
-  icon: string;
-  iconColor: string;
-  time: string;
-  read: boolean;
-  type: "order" | "stock" | "payment" | "kyc" | "promo";
-}
+const iconMap: Record<string, { icon: string; color: string }> = {
+  order: { icon: "shopping-bag", color: "#3B82F6" },
+  stock: { icon: "alert-triangle", color: "#F59E0B" },
+  payment: { icon: "check-circle", color: "#10B981" },
+  kyc: { icon: "user-check", color: "#F59E0B" },
+  promo: { icon: "sun", color: "#F59E0B" },
+  system: { icon: "bell", color: "#6B7280" },
+};
 
 export default function NotificationsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { getLowStockProducts } = useStore();
+  const { notifications, markNotificationRead, markAllNotificationsRead } = useStore();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const lowStock = user?.role !== "customer" ? getLowStockProducts(user?.vendorId) : [];
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const notifications: Notification[] = [
-    ...(user?.role === "customer" ? [
-      {
-        id: "n1",
-        title: "Order Update",
-        body: "Order #O1ABCD is now being prepared by Groyon Store.",
-        icon: "package",
-        iconColor: colors.primary,
-        time: "2 min ago",
-        read: false,
-        type: "order" as const,
-      },
-      {
-        id: "n2",
-        title: "Payment Confirmed",
-        body: "GCash payment of ₱765.00 was successfully processed.",
-        icon: "check-circle",
-        iconColor: colors.success,
-        time: "1 hour ago",
-        read: false,
-        type: "payment" as const,
-      },
-      ...(user?.kycVerified ? [] : [{
-        id: "n3",
-        title: "Complete KYC Verification",
-        body: "Verify your identity to unlock all features and start ordering.",
-        icon: "user-check",
-        iconColor: colors.warning,
-        time: "1 day ago",
-        read: true,
-        type: "kyc" as const,
-      }]),
-      {
-        id: "n4",
-        title: "Ibalong Festival Special!",
-        body: "Festival-themed souvenirs now available. Get yours before they sell out!",
-        icon: "sun",
-        iconColor: colors.gold,
-        time: "2 days ago",
-        read: true,
-        type: "promo" as const,
-      },
-    ] : []),
-    ...lowStock.map((p, idx) => ({
-      id: `stock_${p.id}`,
-      title: "Low Stock Alert",
-      body: `${p.name} is running low with only ${p.stock} units remaining. Restock soon to avoid stockouts.`,
-      icon: "alert-triangle",
-      iconColor: colors.warning,
-      time: `${idx + 1} hour${idx > 0 ? "s" : ""} ago`,
-      read: false,
-      type: "stock" as const,
-    })),
-  ];
+  const handlePress = async (id: string, type: string) => {
+    await markNotificationRead(id);
+    if (type === "order") router.push("/(tabs)/orders" as any);
+    else if (type === "stock") router.push("/(tabs)/inventory" as any);
+    else if (type === "kyc") router.push("/kyc" as any);
+  };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const formatTime = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins || 1} min ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} hr ago`;
+    return `${Math.floor(hours / 24)} day${Math.floor(hours / 24) > 1 ? "s" : ""} ago`;
+  };
 
   return (
     <View style={[s(colors).container]}>
@@ -96,11 +53,17 @@ export default function NotificationsScreen() {
         </Pressable>
         <Text style={s(colors).title}>Notifications</Text>
         {unreadCount > 0 && (
-          <View style={s(colors).badge}>
-            <Text style={s(colors).badgeText}>{unreadCount}</Text>
-          </View>
+          <Pressable style={s(colors).badge} onPress={() => markAllNotificationsRead()}>
+            <Text style={s(colors).badgeText}>Mark all read</Text>
+          </Pressable>
         )}
       </View>
+
+      {unreadCount > 0 && (
+        <View style={s(colors).unreadBanner}>
+          <Text style={s(colors).unreadText}>{unreadCount} unread notification{unreadCount > 1 ? "s" : ""}</Text>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomInset + 40 }}>
         {notifications.length === 0 ? (
@@ -110,29 +73,30 @@ export default function NotificationsScreen() {
             <Text style={s(colors).emptySub}>You're all caught up!</Text>
           </View>
         ) : (
-          notifications.map((notif) => (
-            <Pressable
-              key={notif.id}
-              style={[s(colors).notifCard, !notif.read && s(colors).notifCardUnread]}
-              onPress={() => {
-                if (notif.type === "order") router.push("/(tabs)/orders" as any);
-                else if (notif.type === "stock") router.push("/(tabs)/inventory" as any);
-                else if (notif.type === "kyc") router.push("/kyc" as any);
-              }}
-            >
-              <View style={[s(colors).iconWrap, { backgroundColor: notif.iconColor + "15" }]}>
-                <Feather name={notif.icon as any} size={20} color={notif.iconColor} />
-              </View>
-              <View style={{ flex: 1, gap: 3 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={[s(colors).notifTitle, !notif.read && s(colors).notifTitleUnread]}>{notif.title}</Text>
-                  <Text style={s(colors).time}>{notif.time}</Text>
+          notifications.map((notif) => {
+            const meta = iconMap[notif.type] ?? iconMap.system;
+            return (
+              <Pressable
+                key={notif.id}
+                style={[s(colors).notifCard, !notif.isRead && s(colors).notifCardUnread]}
+                onPress={() => handlePress(notif.id, notif.type)}
+              >
+                <View style={[s(colors).iconWrap, { backgroundColor: meta.color + "18" }]}>
+                  <Feather name={meta.icon as any} size={20} color={meta.color} />
                 </View>
-                <Text style={s(colors).notifBody} numberOfLines={3}>{notif.body}</Text>
-              </View>
-              {!notif.read && <View style={s(colors).unreadDot} />}
-            </Pressable>
-          ))
+                <View style={{ flex: 1, gap: 3 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={[s(colors).notifTitle, !notif.isRead && s(colors).notifTitleUnread]} numberOfLines={1}>
+                      {notif.title}
+                    </Text>
+                    <Text style={s(colors).time}>{formatTime(notif.createdAt)}</Text>
+                  </View>
+                  <Text style={s(colors).notifBody} numberOfLines={3}>{notif.body}</Text>
+                </View>
+                {!notif.isRead && <View style={s(colors).unreadDot} />}
+              </Pressable>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -151,8 +115,10 @@ const s = (colors: ReturnType<typeof useColors>) =>
     },
     backBtn: { padding: 6 },
     title: { flex: 1, fontSize: 20, fontFamily: "Inter_700Bold", color: colors.foreground },
-    badge: { backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    badgeText: { color: "#fff", fontSize: 12, fontFamily: "Inter_700Bold" },
+    badge: { backgroundColor: colors.muted, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+    badgeText: { color: colors.primary, fontSize: 11, fontFamily: "Inter_600SemiBold" },
+    unreadBanner: { marginHorizontal: 16, marginBottom: 12, backgroundColor: colors.primary + "10", borderRadius: 8, padding: 10 },
+    unreadText: { color: colors.primary, fontSize: 12, fontFamily: "Inter_500Medium" },
     empty: { alignItems: "center", paddingTop: 100, gap: 10 },
     emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground },
     emptySub: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
@@ -171,7 +137,7 @@ const s = (colors: ReturnType<typeof useColors>) =>
       borderColor: colors.primary + "30",
     },
     iconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-    notifTitle: { fontSize: 13, fontFamily: "Inter_500Medium", color: colors.mutedForeground },
+    notifTitle: { fontSize: 13, fontFamily: "Inter_500Medium", color: colors.mutedForeground, flex: 1 },
     notifTitleUnread: { color: colors.foreground, fontFamily: "Inter_700Bold" },
     notifBody: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 18 },
     time: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },

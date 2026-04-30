@@ -12,38 +12,33 @@ import {
 
 import { useColors } from "@/hooks/useColors";
 import { useCart } from "@/context/CartContext";
-import { useStore, Product } from "@/context/StoreContext";
+import { useStore } from "@/context/StoreContext";
 import { useAuth } from "@/context/AuthContext";
+import type { Product } from "@/lib/api";
 
 interface Props {
   product: Product;
   compact?: boolean;
 }
 
+const LOW_STOCK_THRESHOLD = 10;
+
 export function ProductCard({ product, compact = false }: Props) {
   const colors = useColors();
   const router = useRouter();
-  const { addItem, items } = useCart();
-  const { isWishlisted, addToWishlist, removeFromWishlist } = useStore();
+  const { addToCart, items } = useCart();
+  const { wishlist, addToWishlist, removeFromWishlist } = useStore();
   const { user } = useAuth();
 
   const inCart = items.some((i) => i.productId === product.id);
-  const wishlisted = isWishlisted(product.id);
-  const isLowStock = product.stock > 0 && product.stock <= product.minThreshold;
+  const wishlisted = wishlist.some(w => w.productId === product.id);
+  const isLowStock = product.stock > 0 && product.stock <= LOW_STOCK_THRESHOLD;
   const isOutOfStock = product.stock === 0;
 
   const handleAddToCart = () => {
     if (isOutOfStock || user?.role !== "customer") return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    addItem({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.images[0],
-      vendorId: product.vendorId,
-      vendorName: product.vendorName,
-      maxStock: product.stock,
-    });
+    addToCart(product.id, 1);
   };
 
   const handleWishlist = () => {
@@ -61,7 +56,7 @@ export function ProductCard({ product, compact = false }: Props) {
         onPress={() => router.push(`/product/${product.id}` as any)}
       >
         <View style={s.compactImageWrap}>
-          {product.images[0] ? (
+          {product.images?.[0] ? (
             <Image source={{ uri: product.images[0] }} style={s.compactImage} />
           ) : (
             <View style={[s.compactImage, s.imagePlaceholder]}>
@@ -89,7 +84,7 @@ export function ProductCard({ product, compact = false }: Props) {
       onPress={() => router.push(`/product/${product.id}` as any)}
     >
       <View style={s.imageWrap}>
-        {product.images[0] ? (
+        {product.images?.[0] ? (
           <Image source={{ uri: product.images[0] }} style={s.image} />
         ) : (
           <View style={[s.image, s.imagePlaceholder]}>
@@ -104,7 +99,7 @@ export function ProductCard({ product, compact = false }: Props) {
           )}
           {product.isSeasonal && (
             <View style={[s.bestSellerBadge, { backgroundColor: colors.gold }]}>
-              <Text style={s.bestSellerText}>{product.seasonalTag ?? "SEASONAL"}</Text>
+              <Text style={s.bestSellerText}>SEASONAL</Text>
             </View>
           )}
         </View>
@@ -124,7 +119,6 @@ export function ProductCard({ product, compact = false }: Props) {
               name="heart"
               size={18}
               color={wishlisted ? colors.destructive : colors.mutedForeground}
-              fill={wishlisted ? colors.destructive : "none"}
             />
           </Pressable>
         )}
@@ -166,7 +160,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     card: {
       backgroundColor: colors.card,
-      borderRadius: colors.radius,
+      borderRadius: 12,
       overflow: "hidden",
       borderWidth: 1,
       borderColor: colors.border,
@@ -221,10 +215,6 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       height: 32,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
       elevation: 2,
     },
     info: { padding: 10 },
@@ -246,10 +236,9 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       justifyContent: "center",
     },
     addBtnDisabled: { backgroundColor: colors.muted },
-    // Compact
     compactCard: {
       backgroundColor: colors.card,
-      borderRadius: colors.radius,
+      borderRadius: 12,
       overflow: "hidden",
       borderWidth: 1,
       borderColor: colors.border,

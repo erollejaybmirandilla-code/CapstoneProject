@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -15,63 +15,56 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { useStore } from "@/context/StoreContext";
 
-type Period = "daily" | "weekly" | "monthly";
+type Period = "day" | "week" | "month" | "year";
+
+const PERIODS: { id: Period; label: string }[] = [
+  { id: "day", label: "Today" },
+  { id: "week", label: "Weekly" },
+  { id: "month", label: "Monthly" },
+  { id: "year", label: "Yearly" },
+];
 
 export default function AnalyticsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { products, orders, vendors, inventoryLogs } = useStore();
-  const [period, setPeriod] = useState<Period>("weekly");
+  const { analytics, vendors, products, orders, fetchAnalytics } = useStore();
+  const [period, setPeriod] = useState<Period>("month");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+
+  useEffect(() => {
+    fetchAnalytics(period);
+  }, [period]);
 
   if (!user || user.role === "customer") {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <Feather name="lock" size={40} color={colors.mutedForeground} />
-        <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>Access Restricted</Text>
+        <Text style={{ color: colors.mutedForeground, marginTop: 12, fontFamily: "Inter_500Medium" }}>Access Restricted</Text>
       </View>
     );
   }
 
-  const vendorOrders = user.vendorId ? orders.filter((o) => o.vendorId === user.vendorId) : orders;
-  const paidOrders = vendorOrders.filter((o) => o.paymentStatus === "paid");
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
-  const vendorProducts = user.vendorId ? products.filter((p) => p.vendorId === user.vendorId) : products;
-  const lowStockCount = vendorProducts.filter((p) => p.stock <= p.minThreshold).length;
-  const outOfStock = vendorProducts.filter((p) => p.stock === 0).length;
-
-  // Revenue by payment method
-  const paymentBreakdown: Record<string, number> = {};
-  paidOrders.forEach((o) => {
-    paymentBreakdown[o.paymentMethod] = (paymentBreakdown[o.paymentMethod] ?? 0) + o.totalAmount;
-  });
-
-  // Top products by sales volume from inventory logs
-  const salesByProduct: Record<string, { name: string; qty: number; revenue: number }> = {};
-  inventoryLogs
-    .filter((l) => l.type === "sale")
-    .forEach((log) => {
-      if (!salesByProduct[log.productId]) {
-        const p = products.find((pr) => pr.id === log.productId);
-        salesByProduct[log.productId] = { name: p?.name ?? log.productName, qty: 0, revenue: 0 };
-      }
-      salesByProduct[log.productId].qty += Math.abs(log.quantityChange);
-    });
-
-  // Vendor performance
-  const vendorPerf = vendors.map((v) => {
-    const vOrders = orders.filter((o) => o.vendorId === v.id && o.paymentStatus === "paid");
-    const revenue = vOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const vProducts = products.filter((p) => p.vendorId === v.id);
+  // Vendor performance from available data
+  const vendorPerf = vendors.map(v => {
+    const vOrders = orders.filter(o => o.paymentStatus === "paid");
+    const revenue = vOrders.reduce((sum, o) => sum + o.total, 0) / Math.max(vendors.length, 1);
+    const vProducts = products.filter(p => p.vendorId === v.id);
     return { ...v, revenue, orderCount: vOrders.length, productCount: vProducts.length };
   }).sort((a, b) => b.revenue - a.revenue);
 
-  const maxRevenue = Math.max(...vendorPerf.map((v) => v.revenue), 1);
+  const maxRevenue = Math.max(...vendorPerf.map(v => v.revenue), 1);
+
+  const totalRevenue = analytics?.totalRevenue ?? orders.filter(o => o.paymentStatus === "paid").reduce((s, o) => s + o.total, 0);
+  const totalOrders = analytics?.totalOrders ?? orders.length;
+  const avgOrderValue = analytics?.avgOrderValue ?? (totalOrders > 0 ? totalRevenue / totalOrders : 0);
+  const topProducts = analytics?.topProducts ?? [];
+  const paymentBreakdown = analytics?.paymentBreakdown ?? {};
+
+  const lowStockCount = products.filter(p => p.stock <= 10).length;
 
   return (
     <View style={[s(colors).container]}>
@@ -85,14 +78,14 @@ export default function AnalyticsScreen() {
 
       {/* Period tabs */}
       <View style={s(colors).periodRow}>
-        {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
+        {PERIODS.map((p) => (
           <Pressable
-            key={p}
-            style={[s(colors).periodBtn, period === p && s(colors).periodBtnActive]}
-            onPress={() => setPeriod(p)}
+            key={p.id}
+            style={[s(colors).periodBtn, period === p.id && s(colors).periodBtnActive]}
+            onPress={() => setPeriod(p.id)}
           >
-            <Text style={[s(colors).periodText, period === p && s(colors).periodTextActive]}>
-              {p.charAt(0).toUpperCase() + p.slice(1)}
+            <Text style={[s(colors).periodText, period === p.id && s(colors).periodTextActive]}>
+              {p.label}
             </Text>
           </Pressable>
         ))}
@@ -112,7 +105,7 @@ export default function AnalyticsScreen() {
             <View style={[s(colors).kpiIcon, { backgroundColor: colors.accent + "15" }]}>
               <Feather name="shopping-bag" size={18} color={colors.accent} />
             </View>
-            <Text style={s(colors).kpiValue}>{paidOrders.length}</Text>
+            <Text style={s(colors).kpiValue}>{totalOrders}</Text>
             <Text style={s(colors).kpiLabel}>Orders</Text>
           </View>
           <View style={[s(colors).kpiCard, { borderColor: colors.gold + "30" }]}>
@@ -131,8 +124,27 @@ export default function AnalyticsScreen() {
           </View>
         </View>
 
-        {/* Vendor Performance */}
-        {user.role === "admin" && (
+        {/* Top Products */}
+        {topProducts.length > 0 && (
+          <View style={s(colors).section}>
+            <Text style={s(colors).sectionTitle}>Top Products</Text>
+            {topProducts.map((p: any, idx: number) => (
+              <View key={p.productId ?? idx} style={s(colors).productRow}>
+                <View style={[s(colors).rankCircle, idx === 0 && { backgroundColor: colors.gold + "20" }]}>
+                  <Text style={[s(colors).rankText, idx === 0 && { color: colors.gold }]}>#{idx + 1}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s(colors).productName} numberOfLines={1}>{p.productName}</Text>
+                  <Text style={s(colors).productMeta}>{p.totalQuantity} sold</Text>
+                </View>
+                <Text style={s(colors).productRevenue}>₱{p.totalRevenue?.toLocaleString() ?? "—"}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Vendor Performance (admin only) */}
+        {user.role === "admin" && vendorPerf.length > 0 && (
           <View style={s(colors).section}>
             <Text style={s(colors).sectionTitle}>Vendor Performance</Text>
             {vendorPerf.map((v, idx) => (
@@ -146,7 +158,10 @@ export default function AnalyticsScreen() {
                     <Text style={s(colors).vendorRevenue}>₱{v.revenue.toLocaleString()}</Text>
                   </View>
                   <View style={s(colors).progressBg}>
-                    <View style={[s(colors).progressFill, { width: `${(v.revenue / maxRevenue) * 100}%`, backgroundColor: idx === 0 ? colors.primary : idx === 1 ? colors.accent : colors.mutedForeground }]} />
+                    <View style={[s(colors).progressFill, {
+                      width: `${(v.revenue / maxRevenue) * 100}%` as any,
+                      backgroundColor: idx === 0 ? colors.primary : idx === 1 ? colors.accent : colors.mutedForeground
+                    }]} />
                   </View>
                   <View style={{ flexDirection: "row", gap: 12 }}>
                     <Text style={s(colors).metaText}>{v.orderCount} orders</Text>
@@ -163,29 +178,31 @@ export default function AnalyticsScreen() {
         )}
 
         {/* Payment Method Breakdown */}
-        <View style={s(colors).section}>
-          <Text style={s(colors).sectionTitle}>Payment Methods</Text>
-          {Object.entries(paymentBreakdown).length === 0 ? (
-            <Text style={s(colors).emptyText}>No payment data yet</Text>
-          ) : (
-            Object.entries(paymentBreakdown)
-              .sort((a, b) => b[1] - a[1])
-              .map(([method, amount]) => {
-                const total = Object.values(paymentBreakdown).reduce((sum, v) => sum + v, 0);
+        {Object.keys(paymentBreakdown).length > 0 && (
+          <View style={s(colors).section}>
+            <Text style={s(colors).sectionTitle}>Payment Methods</Text>
+            {Object.entries(paymentBreakdown)
+              .sort((a: any, b: any) => b[1] - a[1])
+              .map(([method, amount]: any) => {
+                const total = Object.values(paymentBreakdown).reduce((s: any, v: any) => s + v, 0) as number;
                 const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
+                const labels: Record<string, string> = {
+                  gcash: "GCash", maya: "Maya", cod: "Cash on Delivery",
+                  bank_transfer: "Bank Transfer", seven_eleven: "7-Eleven OTC"
+                };
                 return (
                   <View key={method} style={s(colors).paymentRow}>
-                    <Text style={s(colors).paymentMethod} numberOfLines={1}>{method}</Text>
+                    <Text style={s(colors).paymentMethod} numberOfLines={1}>{labels[method] ?? method}</Text>
                     <View style={[s(colors).progressBg, { flex: 1, marginHorizontal: 12 }]}>
-                      <View style={[s(colors).progressFill, { width: `${pct}%`, backgroundColor: colors.primary }]} />
+                      <View style={[s(colors).progressFill, { width: `${pct}%` as any, backgroundColor: colors.primary }]} />
                     </View>
                     <Text style={s(colors).paymentPct}>{pct}%</Text>
                     <Text style={s(colors).paymentAmount}>₱{amount.toLocaleString()}</Text>
                   </View>
                 );
-              })
-          )}
-        </View>
+              })}
+          </View>
+        )}
 
         {/* Inventory Health */}
         <View style={s(colors).section}>
@@ -193,27 +210,22 @@ export default function AnalyticsScreen() {
           <View style={s(colors).inventoryGrid}>
             <View style={[s(colors).invCard, { borderColor: colors.success + "40" }]}>
               <Text style={[s(colors).invValue, { color: colors.success }]}>
-                {vendorProducts.filter((p) => p.stock > p.minThreshold).length}
+                {products.filter(p => p.stock > 10).length}
               </Text>
-              <Text style={s(colors).invLabel}>Healthy Stock</Text>
+              <Text style={s(colors).invLabel}>In Stock</Text>
             </View>
             <View style={[s(colors).invCard, { borderColor: colors.warning + "40" }]}>
-              <Text style={[s(colors).invValue, { color: colors.warning }]}>{lowStockCount}</Text>
+              <Text style={[s(colors).invValue, { color: colors.warning }]}>
+                {lowStockCount}
+              </Text>
               <Text style={s(colors).invLabel}>Low Stock</Text>
             </View>
             <View style={[s(colors).invCard, { borderColor: colors.destructive + "40" }]}>
-              <Text style={[s(colors).invValue, { color: colors.destructive }]}>{outOfStock}</Text>
+              <Text style={[s(colors).invValue, { color: colors.destructive }]}>
+                {products.filter(p => p.stock === 0).length}
+              </Text>
               <Text style={s(colors).invLabel}>Out of Stock</Text>
             </View>
-          </View>
-        </View>
-
-        {/* Export Note */}
-        <View style={s(colors).exportCard}>
-          <Feather name="download" size={18} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={s(colors).exportTitle}>Export Reports</Text>
-            <Text style={s(colors).exportSub}>PDF and Excel export available in the full admin dashboard</Text>
           </View>
         </View>
       </ScrollView>
@@ -227,53 +239,71 @@ const s = (colors: ReturnType<typeof useColors>) =>
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12 },
     backBtn: { padding: 6 },
     title: { fontSize: 20, fontFamily: "Inter_700Bold", color: colors.foreground },
-    periodRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 16, backgroundColor: colors.muted, borderRadius: 10, padding: 3 },
+    periodRow: {
+      flexDirection: "row",
+      marginHorizontal: 16,
+      marginBottom: 16,
+      backgroundColor: colors.muted,
+      borderRadius: 10,
+      padding: 3,
+    },
     periodBtn: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8 },
-    periodBtnActive: { backgroundColor: colors.card },
-    periodText: { fontSize: 13, fontFamily: "Inter_500Medium", color: colors.mutedForeground },
+    periodBtnActive: { backgroundColor: colors.card, elevation: 2 },
+    periodText: { fontFamily: "Inter_500Medium", fontSize: 12, color: colors.mutedForeground },
     periodTextActive: { color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 20 },
     kpiCard: {
       width: "47%",
       backgroundColor: colors.card,
       borderRadius: 14,
-      padding: 14,
-      gap: 6,
+      padding: 16,
+      gap: 8,
       borderWidth: 1.5,
+      borderColor: colors.border,
     },
-    kpiIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+    kpiIcon: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
     kpiValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: colors.foreground },
     kpiLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     section: { marginBottom: 24 },
-    sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 14 },
+    sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 12 },
+    productRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+    rankCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" },
+    rankText: { fontSize: 12, fontFamily: "Inter_700Bold", color: colors.mutedForeground },
+    productName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground },
+    productMeta: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    productRevenue: { fontSize: 14, fontFamily: "Inter_700Bold", color: colors.primary },
     vendorRow: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       gap: 12,
+      padding: 14,
       backgroundColor: colors.card,
       borderRadius: 12,
-      padding: 14,
       marginBottom: 8,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    vendorRank: { width: 28, alignItems: "center" },
-    rankText: { fontSize: 15, fontFamily: "Inter_700Bold", color: colors.mutedForeground },
+    vendorRank: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" },
     vendorName: { flex: 1, fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground },
     vendorRevenue: { fontSize: 14, fontFamily: "Inter_700Bold", color: colors.primary },
     progressBg: { height: 6, backgroundColor: colors.muted, borderRadius: 3, overflow: "hidden" },
-    progressFill: { height: "100%", borderRadius: 3 },
+    progressFill: { height: 6, borderRadius: 3 },
     metaText: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    paymentRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-    paymentMethod: { width: 80, fontSize: 12, fontFamily: "Inter_500Medium", color: colors.foreground },
-    paymentPct: { width: 36, fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.primary, textAlign: "right" },
-    paymentAmount: { width: 80, fontSize: 12, fontFamily: "Inter_500Medium", color: colors.foreground, textAlign: "right" },
-    emptyText: { color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 13 },
+    paymentRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, gap: 4 },
+    paymentMethod: { fontSize: 13, fontFamily: "Inter_500Medium", color: colors.foreground, width: 90 },
+    paymentPct: { fontSize: 13, fontFamily: "Inter_700Bold", color: colors.foreground, width: 36, textAlign: "right" },
+    paymentAmount: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular", width: 80, textAlign: "right" },
     inventoryGrid: { flexDirection: "row", gap: 10 },
-    invCard: { flex: 1, backgroundColor: colors.card, borderRadius: 12, padding: 12, alignItems: "center", borderWidth: 1.5 },
-    invValue: { fontSize: 28, fontFamily: "Inter_700Bold" },
-    invLabel: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 2 },
-    exportCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.secondary, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border },
-    exportTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    exportSub: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: 2 },
+    invCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 14,
+      alignItems: "center",
+      gap: 4,
+      borderWidth: 1,
+    },
+    invValue: { fontSize: 24, fontFamily: "Inter_700Bold" },
+    invLabel: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center" },
+    emptyText: { color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 14 },
   });

@@ -20,7 +20,7 @@ export default function CartScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { items, totalAmount, totalItems, updateQuantity, removeItem, clearCart } = useCart();
+  const { items, subtotal, totalItems, updateQuantity, removeItem, clearCart } = useCart();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -67,22 +67,22 @@ export default function CartScreen() {
         renderItem={({ item }) => (
           <View style={s(colors).itemCard}>
             <View style={s(colors).itemImage}>
-              {item.image ? (
-                <Image source={{ uri: item.image }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+              {item.product.images?.[0] ? (
+                <Image source={{ uri: item.product.images[0] }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
               ) : (
                 <Feather name="package" size={28} color={colors.mutedForeground} />
               )}
             </View>
             <View style={s(colors).itemInfo}>
-              <Text style={s(colors).itemName} numberOfLines={2}>{item.name}</Text>
-              <Text style={s(colors).itemVendor}>{item.vendorName}</Text>
-              <Text style={s(colors).itemPrice}>₱{item.price.toLocaleString()}</Text>
+              <Text style={s(colors).itemName} numberOfLines={2}>{item.product.name}</Text>
+              <Text style={s(colors).itemVendor}>{item.product.vendorName}</Text>
+              <Text style={s(colors).itemPrice}>₱{item.product.price.toLocaleString()}</Text>
               <View style={s(colors).qtyRow}>
                 <Pressable
                   style={s(colors).qtyBtn}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    updateQuantity(item.productId, item.quantity - 1);
+                    updateQuantity(item.id, item.quantity - 1);
                   }}
                 >
                   <Feather name="minus" size={14} color={colors.foreground} />
@@ -92,7 +92,7 @@ export default function CartScreen() {
                   style={s(colors).qtyBtn}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    updateQuantity(item.productId, item.quantity + 1);
+                    updateQuantity(item.id, item.quantity + 1);
                   }}
                 >
                   <Feather name="plus" size={14} color={colors.foreground} />
@@ -103,14 +103,14 @@ export default function CartScreen() {
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  removeItem(item.productId);
+                  removeItem(item.id);
                 }}
                 style={s(colors).removeBtn}
               >
                 <Feather name="trash-2" size={16} color={colors.destructive} />
               </Pressable>
               <Text style={s(colors).itemTotal}>
-                ₱{(item.price * item.quantity).toLocaleString()}
+                ₱{(item.product.price * item.quantity).toLocaleString()}
               </Text>
             </View>
           </View>
@@ -121,7 +121,7 @@ export default function CartScreen() {
       <View style={[s(colors).checkoutBar, { paddingBottom: bottomInset + 12 }]}>
         <View style={s(colors).totalRow}>
           <Text style={s(colors).totalLabel}>Total ({totalItems} items)</Text>
-          <Text style={s(colors).totalAmount}>₱{totalAmount.toLocaleString()}</Text>
+          <Text style={s(colors).totalAmount}>₱{subtotal.toLocaleString()}</Text>
         </View>
         <Pressable
           style={({ pressed }) => [s(colors).checkoutBtn, pressed && { opacity: 0.85 }]}

@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -18,6 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useStore } from "@/context/StoreContext";
 import { StockBadge } from "@/components/StockBadge";
+import type { Product } from "@/lib/api";
 
 export default function ProductDetailScreen() {
   const colors = useColors();
@@ -25,11 +26,18 @@ export default function ProductDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const { addItem, items, updateQuantity } = useCart();
-  const { products, isWishlisted, addToWishlist, removeFromWishlist } = useStore();
+  const { addToCart, items } = useCart();
+  const { products, wishlist, addToWishlist, removeFromWishlist, fetchProduct } = useStore();
 
-  const product = products.find((p) => p.id === id);
+  const [product, setProduct] = useState<Product | null>(products.find(p => p.id === id) ?? null);
   const [qty, setQty] = useState(1);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    if (!product && id) {
+      fetchProduct(id).then(p => { if (p) setProduct(p); });
+    }
+  }, [id]);
 
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -44,30 +52,35 @@ export default function ProductDetailScreen() {
 
   const cartItem = items.find((i) => i.productId === product.id);
   const inCart = !!cartItem;
-  const wishlisted = isWishlisted(product.id);
+  const wishlisted = wishlist.some(w => w.productId === product.id);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (product.stock === 0 || user?.role !== "customer") return;
     if (inCart) {
       router.push("/(tabs)/cart" as any);
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    for (let i = 0; i < qty; i++) {
-      addItem({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.images[0],
-        vendorId: product.vendorId,
-        vendorName: product.vendorName,
-        maxStock: product.stock,
-      });
+    try {
+      setAdding(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await addToCart(product.id, qty);
+      Alert.alert("Added to Cart", `${product.name} has been added to your cart.`, [
+        { text: "Continue Shopping", style: "cancel" },
+        { text: "View Cart", onPress: () => router.push("/(tabs)/cart" as any) },
+      ]);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to add to cart");
+    } finally {
+      setAdding(false);
     }
-    Alert.alert("Added to Cart", `${product.name} has been added to your cart.`, [
-      { text: "Continue Shopping", style: "cancel" },
-      { text: "View Cart", onPress: () => router.push("/(tabs)/cart" as any) },
-    ]);
+  };
+
+  const handleWishlist = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      if (wishlisted) await removeFromWishlist(product.id);
+      else await addToWishlist(product.id);
+    } catch {}
   };
 
   return (
@@ -81,18 +94,13 @@ export default function ProductDetailScreen() {
           <View style={s(colors).image}>
             <Feather name="package" size={64} color={colors.mutedForeground} />
           </View>
-          {/* Header buttons */}
           <Pressable style={[s(colors).circleBtn, { top: topInset + 12, left: 16 }]} onPress={() => router.back()}>
             <Feather name="arrow-left" size={20} color={colors.foreground} />
           </Pressable>
           {user?.role === "customer" && (
             <Pressable
               style={[s(colors).circleBtn, { top: topInset + 12, right: 16 }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (wishlisted) removeFromWishlist(product.id);
-                else addToWishlist(product.id);
-              }}
+              onPress={handleWishlist}
             >
               <Feather name="heart" size={20} color={wishlisted ? colors.destructive : colors.foreground} />
             </Pressable>
@@ -108,7 +116,12 @@ export default function ProductDetailScreen() {
           {/* Name & Price */}
           <View style={s(colors).topRow}>
             <Text style={s(colors).productName}>{product.name}</Text>
-            <Text style={s(colors).price}>₱{product.price.toLocaleString()}</Text>
+            <View>
+              <Text style={s(colors).price}>₱{product.price.toLocaleString()}</Text>
+              {product.compareAtPrice && (
+                <Text style={s(colors).comparePrice}>₱{product.compareAtPrice.toLocaleString()}</Text>
+              )}
+            </View>
           </View>
 
           {/* Vendor */}
@@ -138,13 +151,15 @@ export default function ProductDetailScreen() {
           </View>
 
           {/* Stock */}
-          <StockBadge stock={product.stock} minThreshold={product.minThreshold} />
+          <StockBadge stock={product.stock} />
 
           {/* Category */}
-          <View style={s(colors).infoRow}>
-            <Feather name="tag" size={14} color={colors.mutedForeground} />
-            <Text style={s(colors).infoText}>{product.category}</Text>
-          </View>
+          {product.categoryName && (
+            <View style={s(colors).infoRow}>
+              <Feather name="tag" size={14} color={colors.mutedForeground} />
+              <Text style={s(colors).infoText}>{product.categoryName}</Text>
+            </View>
+          )}
 
           {/* Description */}
           <View style={s(colors).section}>
@@ -153,7 +168,7 @@ export default function ProductDetailScreen() {
           </View>
 
           {/* Food info */}
-          {(product.ingredients || product.expirationDate) && (
+          {(product.ingredients || product.expirationMonths || product.weight) && (
             <View style={s(colors).section}>
               <Text style={s(colors).sectionTitle}>Product Details</Text>
               {product.ingredients && (
@@ -162,22 +177,30 @@ export default function ProductDetailScreen() {
                   <Text style={s(colors).detailValue}>{product.ingredients}</Text>
                 </View>
               )}
-              {product.expirationDate && (
+              {product.expirationMonths && (
                 <View style={s(colors).detailRow}>
-                  <Text style={s(colors).detailLabel}>Best Before</Text>
-                  <Text style={[s(colors).detailValue, new Date(product.expirationDate) < new Date() && { color: colors.destructive }]}>
-                    {new Date(product.expirationDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}
-                  </Text>
+                  <Text style={s(colors).detailLabel}>Shelf Life</Text>
+                  <Text style={s(colors).detailValue}>{product.expirationMonths} months</Text>
                 </View>
               )}
+              {product.weight && (
+                <View style={s(colors).detailRow}>
+                  <Text style={s(colors).detailLabel}>Weight</Text>
+                  <Text style={s(colors).detailValue}>{product.weight}</Text>
+                </View>
+              )}
+              <View style={s(colors).detailRow}>
+                <Text style={s(colors).detailLabel}>Unit</Text>
+                <Text style={s(colors).detailValue}>{product.unit}</Text>
+              </View>
             </View>
           )}
 
-          {/* Seasonal */}
+          {/* Seasonal badge */}
           {product.isSeasonal && (
             <View style={s(colors).seasonBadge}>
               <Feather name="sun" size={14} color={colors.gold} />
-              <Text style={s(colors).seasonText}>Seasonal Item: {product.seasonalTag}</Text>
+              <Text style={s(colors).seasonText}>Seasonal Item — Limited Stock</Text>
             </View>
           )}
 
@@ -210,11 +233,11 @@ export default function ProductDetailScreen() {
               pressed && { opacity: 0.85 },
             ]}
             onPress={handleAddToCart}
-            disabled={product.stock === 0}
+            disabled={product.stock === 0 || adding}
           >
             <Feather name={inCart ? "shopping-bag" : "shopping-cart"} size={20} color="#fff" />
             <Text style={s(colors).addBtnText}>
-              {product.stock === 0 ? "Out of Stock" : inCart ? "View Cart" : "Add to Cart"}
+              {product.stock === 0 ? "Out of Stock" : inCart ? "View Cart" : adding ? "Adding..." : "Add to Cart"}
             </Text>
           </Pressable>
         </View>
@@ -235,10 +258,6 @@ const s = (colors: ReturnType<typeof useColors>) =>
       backgroundColor: colors.card,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
       elevation: 3,
     },
     bestBadge: { position: "absolute", bottom: 12, left: 16, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
@@ -247,6 +266,7 @@ const s = (colors: ReturnType<typeof useColors>) =>
     topRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
     productName: { flex: 1, fontSize: 22, fontFamily: "Inter_700Bold", color: colors.foreground, lineHeight: 28 },
     price: { fontSize: 24, fontFamily: "Inter_700Bold", color: colors.primary },
+    comparePrice: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textDecorationLine: "line-through", textAlign: "right" },
     vendorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     vendorIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.secondary, alignItems: "center", justifyContent: "center" },
     vendorName: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: colors.foreground },

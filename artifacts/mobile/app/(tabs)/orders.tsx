@@ -11,14 +11,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { useStore, Order } from "@/context/StoreContext";
+import { useStore } from "@/context/StoreContext";
 import { OrderCard } from "@/components/OrderCard";
+import type { Order } from "@/lib/api";
 
-const ORDER_STATUSES: Array<{ key: Order["orderStatus"] | "all"; label: string }> = [
+type StatusFilter = Order["status"] | "all";
+
+const ORDER_STATUSES: Array<{ key: StatusFilter; label: string }> = [
   { key: "all", label: "All" },
   { key: "pending", label: "Pending" },
+  { key: "confirmed", label: "Confirmed" },
   { key: "preparing", label: "Preparing" },
   { key: "ready", label: "Ready" },
+  { key: "out_for_delivery", label: "En Route" },
   { key: "delivered", label: "Delivered" },
   { key: "cancelled", label: "Cancelled" },
 ];
@@ -27,23 +32,20 @@ export default function OrdersScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { getVendorOrders, getCustomerOrders, updateOrderStatus } = useStore();
+  const { orders, updateOrderStatus } = useStore();
 
-  const [statusFilter, setStatusFilter] = useState<Order["orderStatus"] | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   if (!user) return null;
 
-  const orders = user.role === "customer"
-    ? getCustomerOrders(user.id)
-    : getVendorOrders(user.vendorId ?? "v1");
-
   const filtered = statusFilter === "all"
     ? orders
-    : orders.filter((o) => o.orderStatus === statusFilter);
+    : orders.filter((o) => o.status === statusFilter);
 
   const isStaff = user.role === "admin" || user.role === "staff";
+  const activeCount = orders.filter(o => o.status === "pending" || o.status === "preparing" || o.status === "confirmed").length;
 
   return (
     <View style={[s(colors).container]}>
@@ -51,9 +53,9 @@ export default function OrdersScreen() {
         <Text style={s(colors).title}>
           {isStaff ? "Order Management" : "My Orders"}
         </Text>
-        {isStaff && (
+        {isStaff && activeCount > 0 && (
           <View style={[s(colors).badge]}>
-            <Text style={s(colors).badgeText}>{orders.filter(o => o.orderStatus === "pending" || o.orderStatus === "preparing").length} Active</Text>
+            <Text style={s(colors).badgeText}>{activeCount} Active</Text>
           </View>
         )}
       </View>
@@ -63,7 +65,8 @@ export default function OrdersScreen() {
         {ORDER_STATUSES.map((status) => {
           const count = status.key === "all"
             ? orders.length
-            : orders.filter((o) => o.orderStatus === status.key).length;
+            : orders.filter((o) => o.status === status.key).length;
+          if (status.key !== "all" && count === 0) return null;
           return (
             <View
               key={status.key}

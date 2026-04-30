@@ -5,10 +5,10 @@ import { useColors } from "@/hooks/useColors";
 
 interface Props {
   stock: number;
-  minThreshold: number;
+  minThreshold?: number;
 }
 
-export function StockBadge({ stock, minThreshold }: Props) {
+export function StockBadge({ stock, minThreshold = 10 }: Props) {
   const colors = useColors();
   const isOut = stock === 0;
   const isLow = !isOut && stock <= minThreshold;

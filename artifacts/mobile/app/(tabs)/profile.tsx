@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { getCustomerOrders } = useStore();
+  const { orders } = useStore();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -45,10 +45,11 @@ export default function ProfileScreen() {
     );
   }
 
+  const kycVerified = user.kycStatus === "verified";
   const roleConfig = ROLE_CONFIG[user.role];
-  const orders = user.role === "customer" ? getCustomerOrders(user.id) : [];
-  const completedOrders = orders.filter((o) => o.orderStatus === "delivered").length;
-  const totalSpent = orders.filter((o) => o.paymentStatus === "paid").reduce((sum, o) => sum + o.totalAmount, 0);
+  const myOrders = user.role === "customer" ? orders : [];
+  const completedOrders = myOrders.filter((o) => o.status === "delivered").length;
+  const totalSpent = myOrders.filter((o) => o.paymentStatus === "paid").reduce((sum, o) => sum + o.total, 0);
 
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -87,21 +88,21 @@ export default function ProfileScreen() {
       {/* KYC Status */}
       {user.role === "customer" && (
         <Pressable
-          style={[s(colors).kycCard, user.kycVerified ? s(colors).kycVerified : s(colors).kycPending]}
-          onPress={() => !user.kycVerified && router.push("/kyc" as any)}
+          style={[s(colors).kycCard, kycVerified ? s(colors).kycVerified : s(colors).kycPending]}
+          onPress={() => !kycVerified && router.push("/kyc" as any)}
         >
           <View style={{ flex: 1 }}>
-            <Text style={[s(colors).kycTitle, user.kycVerified ? { color: colors.success } : { color: colors.warning }]}>
-              {user.kycVerified ? "Identity Verified" : "Complete KYC Verification"}
+            <Text style={[s(colors).kycTitle, kycVerified ? { color: colors.success } : { color: colors.warning }]}>
+              {kycVerified ? "Identity Verified" : "Complete KYC Verification"}
             </Text>
-            <Text style={[s(colors).kycSub, user.kycVerified ? { color: colors.success + "aa" } : { color: colors.warning + "aa" }]}>
-              {user.kycVerified ? "Your account is fully verified" : "Required to place orders above ₱500"}
+            <Text style={[s(colors).kycSub, kycVerified ? { color: colors.success + "aa" } : { color: colors.warning + "aa" }]}>
+              {kycVerified ? "Your account is fully verified" : "Required to place orders above ₱500"}
             </Text>
           </View>
           <Feather
-            name={user.kycVerified ? "check-circle" : "alert-circle"}
+            name={kycVerified ? "check-circle" : "alert-circle"}
             size={22}
-            color={user.kycVerified ? colors.success : colors.warning}
+            color={kycVerified ? colors.success : colors.warning}
           />
         </Pressable>
       )}
@@ -110,7 +111,7 @@ export default function ProfileScreen() {
       {user.role === "customer" && (
         <View style={s(colors).statsRow}>
           <View style={s(colors).statCard}>
-            <Text style={s(colors).statValue}>{orders.length}</Text>
+            <Text style={s(colors).statValue}>{myOrders.length}</Text>
             <Text style={s(colors).statLabel}>Total Orders</Text>
           </View>
           <View style={[s(colors).statCard, { borderColor: colors.border }]}>
@@ -132,7 +133,7 @@ export default function ProfileScreen() {
           <>
             <MenuItem icon="heart" label="My Wishlist" onPress={() => router.push("/wishlist" as any)} colors={colors} />
             <MenuItem icon="shopping-bag" label="Order History" onPress={() => router.push("/(tabs)/orders" as any)} colors={colors} />
-            {!user.kycVerified && (
+            {!kycVerified && (
               <MenuItem icon="user-check" label="KYC Verification" onPress={() => router.push("/kyc" as any)} colors={colors} badge="Pending" />
             )}
           </>

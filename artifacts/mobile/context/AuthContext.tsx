@@ -1,132 +1,66 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { api, SafeUser, loadToken, setToken } from "@/lib/api";
 
-export type UserRole = "admin" | "staff" | "customer";
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  phone?: string;
-  kycVerified: boolean;
-  avatar?: string;
-  vendorId?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
+type AuthContextType = {
+  user: SafeUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string, phone?: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  updateKycStatus: (verified: boolean) => void;
-}
-
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  phone: string;
-  role?: UserRole;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const MOCK_USERS: Record<string, { password: string; user: User }> = {
-  "admin@legazpimarket.ph": {
-    password: "admin123",
-    user: {
-      id: "u1",
-      name: "Maria Santos",
-      email: "admin@legazpimarket.ph",
-      role: "admin",
-      phone: "+63 912 345 6789",
-      kycVerified: true,
-      vendorId: "v1",
-    },
-  },
-  "staff@groyon.ph": {
-    password: "staff123",
-    user: {
-      id: "u2",
-      name: "Juan dela Cruz",
-      email: "staff@groyon.ph",
-      role: "staff",
-      phone: "+63 917 234 5678",
-      kycVerified: true,
-      vendorId: "v1",
-    },
-  },
-  "customer@gmail.com": {
-    password: "customer123",
-    user: {
-      id: "u3",
-      name: "Sarah Chen",
-      email: "customer@gmail.com",
-      role: "customer",
-      phone: "+63 918 765 4321",
-      kycVerified: false,
-    },
-  },
+  refreshUser: () => Promise<void>;
 };
 
+const AuthContext = createContext<AuthContextType | null>(null);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const stored = await AsyncStorage.getItem("@auth_user");
-        if (stored) {
-          setUser(JSON.parse(stored));
-        }
-      } catch (_) {}
-      setIsLoading(false);
-    };
-    loadUser();
+    initialize();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const entry = MOCK_USERS[email.toLowerCase()];
-    if (!entry || entry.password !== password) {
-      throw new Error("Invalid email or password");
+  async function initialize() {
+    try {
+      await loadToken();
+      const me = await api.get<SafeUser>("/auth/me");
+      setUser(me);
+    } catch {
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-    const loggedIn = entry.user;
-    await AsyncStorage.setItem("@auth_user", JSON.stringify(loggedIn));
-    setUser(loggedIn);
-  };
+  }
 
-  const logout = async () => {
-    await AsyncStorage.removeItem("@auth_user");
+  async function login(email: string, password: string) {
+    const res = await api.post<{ user: SafeUser; token: string }>("/auth/login", { email, password });
+    setToken(res.token);
+    setUser(res.user);
+  }
+
+  async function register(email: string, password: string, name: string, phone?: string) {
+    const res = await api.post<{ user: SafeUser; token: string }>("/auth/register", { email, password, name, phone });
+    setToken(res.token);
+    setUser(res.user);
+  }
+
+  async function logout() {
+    try {
+      await api.post("/auth/logout");
+    } catch {}
+    setToken(null);
     setUser(null);
-  };
+  }
 
-  const register = async (data: RegisterData) => {
-    const newUser: User = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      name: data.name,
-      email: data.email,
-      role: data.role ?? "customer",
-      phone: data.phone,
-      kycVerified: false,
-    };
-    await AsyncStorage.setItem("@auth_user", JSON.stringify(newUser));
-    setUser(newUser);
-  };
-
-  const updateKycStatus = (verified: boolean) => {
-    if (!user) return;
-    const updated = { ...user, kycVerified: verified };
-    setUser(updated);
-    AsyncStorage.setItem("@auth_user", JSON.stringify(updated));
-  };
+  async function refreshUser() {
+    try {
+      const me = await api.get<SafeUser>("/auth/me");
+      setUser(me);
+    } catch {}
+  }
 
   return (
-    <AuthContext.Provider
-      value={{ user, isLoading, login, logout, register, updateKycStatus }}
-    >
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -137,3 +71,6 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
+export type { SafeUser };
+export type UserRole = SafeUser["role"];
