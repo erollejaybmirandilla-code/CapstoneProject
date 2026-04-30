@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Legazpi Souvenir Market",
-    "slug": "mobile",
+    "name": "Legazpi Pasalubong Center",
+    "slug": "legazpipasalubongcenter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "legazpipasalubongcenter",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -14,9 +14,12 @@
       "backgroundColor": "#FAFAF8"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.legazpipasalubongcenter.app"
     },
-    "android": {},
+    "android": {
+      "package": "com.legazpipasalubongcenter.app"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
