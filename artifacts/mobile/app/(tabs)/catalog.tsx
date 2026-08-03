@@ -219,6 +219,7 @@ const s = (colors: ReturnType<typeof useColors>) =>
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
+      marginHorizontal: 1,
     },
     catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     catLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },

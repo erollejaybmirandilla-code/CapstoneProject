@@ -5,7 +5,7 @@ type AuthContextType = {
   user: SafeUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, phone?: string) => Promise<void>;
+  register: (args: { email: string; password: string; name: string; phone?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -38,8 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user);
   }
 
-  async function register(email: string, password: string, name: string, phone?: string) {
-    const res = await api.post<{ user: SafeUser; token: string }>("/auth/register", { email, password, name, phone });
+  async function register(args: { email: string; password: string; name: string; phone?: string }) {
+    const res = await api.post<{ user: SafeUser; token: string }>("/auth/register", args);
     setToken(res.token);
     setUser(res.user);
   }

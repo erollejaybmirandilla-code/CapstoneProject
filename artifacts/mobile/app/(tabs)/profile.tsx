@@ -45,7 +45,7 @@ export default function ProfileScreen() {
     );
   }
 
-  const kycVerified = user.kycStatus === "verified";
+  const kycVerified = user.kycStatus === "approved";
   const roleConfig = ROLE_CONFIG[user.role];
   const myOrders = user.role === "customer" ? orders : [];
   const completedOrders = myOrders.filter((o) => o.status === "delivered").length;

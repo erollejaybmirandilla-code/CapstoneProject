@@ -51,7 +51,7 @@ export default function KYCScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  if (user?.kycStatus === "verified") {
+  if (user?.kycStatus === "approved") {
     return (
       <View style={[s(colors).container, { alignItems: "center", justifyContent: "center" }]}>
         <View style={s(colors).successCircle}>
