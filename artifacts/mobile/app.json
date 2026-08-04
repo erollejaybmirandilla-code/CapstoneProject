@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Legazpi Pasalubong Center",
-    "slug": "legazpipasalubongcenter",
+    "name": "Capstone Project",
+    "slug": "capstoneproject",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "legazpipasalubongcenter",
+    "scheme": "capstoneproject",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.legazpipasalubongcenter.app"
+      "bundleIdentifier": "com.capstoneproject.app"
     },
     "android": {
-      "package": "com.legazpipasalubongcenter.app"
+      "package": "com.capstoneproject.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
