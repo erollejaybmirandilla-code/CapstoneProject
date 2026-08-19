@@ -1,33 +1,26 @@
-import { pgTable, text, timestamp, real, integer, pgEnum, jsonb } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const orderStatusEnum = pgEnum("order_status", [
-  "pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"
-]);
-export const paymentStatusEnum = pgEnum("payment_status", ["unpaid", "paid", "refunded"]);
-export const paymentMethodEnum = pgEnum("payment_method", ["gcash", "maya", "cod", "bank_transfer", "seven_eleven"]);
-export const deliveryMethodEnum = pgEnum("delivery_method", ["pickup", "lalamove", "jnt", "lbc", "hotel_dropoff"]);
-
-export const ordersTable = pgTable("orders", {
+export const ordersTable = sqliteTable("orders", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull(),
   vendorId: text("vendor_id"),
-  status: orderStatusEnum("status").notNull().default("pending"),
-  paymentMethod: paymentMethodEnum("payment_method").notNull(),
-  paymentStatus: paymentStatusEnum("payment_status").notNull().default("unpaid"),
-  deliveryMethod: deliveryMethodEnum("delivery_method").notNull(),
+  status: text("status", { enum: ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"] }).notNull().default("pending"),
+  paymentMethod: text("payment_method", { enum: ["gcash", "maya", "cod", "bank_transfer", "seven_eleven"] }).notNull(),
+  paymentStatus: text("payment_status", { enum: ["unpaid", "paid", "refunded"] }).notNull().default("unpaid"),
+  deliveryMethod: text("delivery_method", { enum: ["pickup", "lalamove", "jnt", "lbc", "hotel_dropoff"] }).notNull(),
   deliveryAddress: text("delivery_address"),
   deliveryFee: real("delivery_fee").notNull().default(0),
   subtotal: real("subtotal").notNull(),
   total: real("total").notNull(),
   notes: text("notes"),
   referenceNumber: text("reference_number"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
-export const orderItemsTable = pgTable("order_items", {
+export const orderItemsTable = sqliteTable("order_items", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   orderId: text("order_id").notNull(),
   productId: text("product_id").notNull(),

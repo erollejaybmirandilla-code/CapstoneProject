@@ -9,7 +9,7 @@ const getBaseUrl = () => {
   if (domain) {
     return `https://${domain}/api`;
   }
-  return "http://localhost:80/api";
+  return process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080/api";
 };
 
 const BASE_URL = getBaseUrl();
@@ -71,8 +71,9 @@ export type SafeUser = {
   name: string;
   phone?: string | null;
   role: "admin" | "staff" | "customer";
-  isVerified: boolean;
+   isVerified: boolean;
   kycStatus: "none" | "pending" | "approved" | "rejected";
+  vendorId?: string | null;
   avatarUrl?: string | null;
   createdAt: string;
 };

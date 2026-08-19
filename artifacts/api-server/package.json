@@ -4,16 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
+    "dev": "NODE_ENV=development pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "start:win": "node --enable-source-maps ./dist/index.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pkg": "pkg --targets node22-win-x64 --output dist/api-server-win.exe .",
+    "pkg:all": "pkg --targets node22-win-x64,node22-linux-x64,node22-darwin-x64 --output dist/api-server ."
+  },
+  "pkg": {
+    "assets": ["data/"],
+    "outputDirectory": "dist",
+    "targets": ["node22-win-x64"]
   },
   "dependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/express-session": "^1.19.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
+    "better-sqlite3": "catalog:",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
@@ -31,6 +40,7 @@
     "@types/node": "catalog:",
     "esbuild": "^0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
+    "pkg": "^5.8.1",
     "pino-pretty": "^13",
     "thread-stream": "3.1.0"
   }

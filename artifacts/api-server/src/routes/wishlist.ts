@@ -39,7 +39,7 @@ router.post("/", async (req, res) => {
 });
 
 router.delete("/:productId", async (req, res) => {
-  await db.delete(wishlistItemsTable).where(and(eq(wishlistItemsTable.userId, req.session.userId!), eq(wishlistItemsTable.productId, req.params.productId)));
+  await db.delete(wishlistItemsTable).where(and(eq(wishlistItemsTable.userId, req.session.userId!), eq(wishlistItemsTable.productId, req.params.productId as string)));
   res.json({ message: "Removed from wishlist" });
 });
 

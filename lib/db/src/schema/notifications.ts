@@ -1,20 +1,16 @@
-import { pgTable, text, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const notificationTypeEnum = pgEnum("notification_type", [
-  "order_update", "low_stock", "payment", "kyc", "promotion", "system"
-]);
-
-export const notificationsTable = pgTable("notifications", {
+export const notificationsTable = sqliteTable("notifications", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull(),
   title: text("title").notNull(),
   body: text("body").notNull(),
-  type: notificationTypeEnum("type").notNull().default("system"),
-  isRead: boolean("is_read").notNull().default(false),
+  type: text("type", { enum: ["order_update", "low_stock", "payment", "kyc", "promotion", "system"] }).notNull().default("system"),
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
   relatedId: text("related_id"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const insertNotificationSchema = createInsertSchema(notificationsTable).omit({ id: true, createdAt: true });

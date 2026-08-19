@@ -1,22 +1,18 @@
-import { pgTable, text, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const inventoryActionEnum = pgEnum("inventory_action", [
-  "restock", "sale", "adjustment", "damage", "return"
-]);
-
-export const inventoryLogsTable = pgTable("inventory_logs", {
+export const inventoryLogsTable = sqliteTable("inventory_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   productId: text("product_id").notNull(),
   vendorId: text("vendor_id").notNull(),
   userId: text("user_id").notNull(),
-  action: inventoryActionEnum("action").notNull(),
+  action: text("action", { enum: ["restock", "sale", "adjustment", "damage", "return"] }).notNull(),
   quantity: integer("quantity").notNull(),
   previousStock: integer("previous_stock").notNull(),
   newStock: integer("new_stock").notNull(),
   notes: text("notes"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const insertInventoryLogSchema = createInsertSchema(inventoryLogsTable).omit({ id: true, createdAt: true });

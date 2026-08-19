@@ -43,7 +43,7 @@ router.post("/:productId/restock", async (req, res) => {
     res.status(400).json({ error: "Invalid input" });
     return;
   }
-  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.productId)).limit(1);
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.productId as string)).limit(1);
   if (!product) {
     res.status(404).json({ error: "Product not found" });
     return;

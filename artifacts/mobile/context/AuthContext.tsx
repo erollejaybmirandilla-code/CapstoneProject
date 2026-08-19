@@ -8,6 +8,7 @@ type AuthContextType = {
   register: (args: { email: string; password: string; name: string; phone?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateKycStatus: (verified: boolean) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -59,8 +60,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }
 
+  async function updateKycStatus(verified: boolean) {
+    if (verified) {
+      await refreshUser();
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, refreshUser, updateKycStatus }}>
       {children}
     </AuthContext.Provider>
   );

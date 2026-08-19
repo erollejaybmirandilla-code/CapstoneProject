@@ -25,7 +25,7 @@ router.put("/read-all", async (req, res) => {
 router.put("/:id/read", async (req, res) => {
   await db.update(notificationsTable)
     .set({ isRead: true })
-    .where(and(eq(notificationsTable.id, req.params.id), eq(notificationsTable.userId, req.session.userId!)));
+    .where(and(eq(notificationsTable.id, req.params.id as string), eq(notificationsTable.userId, req.session.userId!)));
   res.json({ message: "Notification marked as read" });
 });
 

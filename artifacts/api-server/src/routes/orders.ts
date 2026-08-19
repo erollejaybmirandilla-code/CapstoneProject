@@ -36,7 +36,7 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, req.params.id)).limit(1);
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, req.params.id as string)).limit(1);
   if (!order) {
     res.status(404).json({ error: "Order not found" });
     return;
@@ -161,7 +161,7 @@ router.put("/:id/status", requireRole("admin", "staff"), async (req, res) => {
   }
   const [order] = await db.update(ordersTable)
     .set({ status: result.data.status, updatedAt: new Date() })
-    .where(eq(ordersTable.id, req.params.id))
+    .where(eq(ordersTable.id, req.params.id as string))
     .returning();
   if (!order) {
     res.status(404).json({ error: "Order not found" });

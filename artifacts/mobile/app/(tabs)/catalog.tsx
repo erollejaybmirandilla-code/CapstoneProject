@@ -44,7 +44,7 @@ export default function CatalogScreen() {
 
   const filtered = products
     .filter((p) => {
-      if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.vendorName.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !(p.vendorName?.toLowerCase() ?? "").includes(search.toLowerCase())) return false;
       if (category !== "All" && (p.categoryName ?? "").toLowerCase() !== category.toLowerCase()) return false;
       if (vendorFilter !== "all" && p.vendorId !== vendorFilter) return false;
       if (maxPrice && p.price > maxPrice) return false;

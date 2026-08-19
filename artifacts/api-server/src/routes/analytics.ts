@@ -62,13 +62,13 @@ router.get("/summary", async (req, res) => {
     .groupBy(ordersTable.paymentMethod);
 
   const revenueByDay = await db.select({
-    date: sql<string>`date_trunc('day', ${ordersTable.createdAt})::date::text`,
+    date: sql<string>`strftime('%Y-%m-%d', datetime(${ordersTable.createdAt} / 1000, 'unixepoch'))`,
     revenue: sql<number>`coalesce(sum(total), 0)`,
     orders: sql<number>`count(*)`,
   }).from(ordersTable)
     .where(and(gte(ordersTable.createdAt, since), eq(ordersTable.status, "delivered")))
-    .groupBy(sql`date_trunc('day', ${ordersTable.createdAt})`)
-    .orderBy(sql`date_trunc('day', ${ordersTable.createdAt})`);
+    .groupBy(sql`strftime('%Y-%m-%d', datetime(${ordersTable.createdAt} / 1000, 'unixepoch'))`)
+    .orderBy(sql`strftime('%Y-%m-%d', datetime(${ordersTable.createdAt} / 1000, 'unixepoch'))`);
 
   res.json({
     totalRevenue: Number(revenueResult.total),

@@ -62,12 +62,12 @@ router.put("/:itemId", async (req, res) => {
     res.status(400).json({ error: "Invalid quantity" });
     return;
   }
-  await db.update(cartItemsTable).set({ quantity, updatedAt: new Date() }).where(and(eq(cartItemsTable.id, req.params.itemId), eq(cartItemsTable.userId, req.session.userId!)));
+  await db.update(cartItemsTable).set({ quantity, updatedAt: new Date() }).where(and(eq(cartItemsTable.id, req.params.itemId as string), eq(cartItemsTable.userId, req.session.userId!)));
   res.json(await getCartResponse(req.session.userId!));
 });
 
 router.delete("/:itemId", async (req, res) => {
-  await db.delete(cartItemsTable).where(and(eq(cartItemsTable.id, req.params.itemId), eq(cartItemsTable.userId, req.session.userId!)));
+  await db.delete(cartItemsTable).where(and(eq(cartItemsTable.id, req.params.itemId as string), eq(cartItemsTable.userId, req.session.userId!)));
   res.json(await getCartResponse(req.session.userId!));
 });
 

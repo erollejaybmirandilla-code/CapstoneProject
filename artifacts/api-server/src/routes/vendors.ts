@@ -11,7 +11,7 @@ router.get("/", async (_req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-  const [vendor] = await db.select().from(vendorsTable).where(eq(vendorsTable.id, req.params.id)).limit(1);
+  const [vendor] = await db.select().from(vendorsTable).where(eq(vendorsTable.id, req.params.id as string)).limit(1);
   if (!vendor) {
     res.status(404).json({ error: "Vendor not found" });
     return;

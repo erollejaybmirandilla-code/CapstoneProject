@@ -1,8 +1,8 @@
-import { pgTable, text, timestamp, boolean, real, integer } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const vendorsTable = pgTable("vendors", {
+export const vendorsTable = sqliteTable("vendors", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
@@ -11,11 +11,11 @@ export const vendorsTable = pgTable("vendors", {
   dtiRegistration: text("dti_registration").notNull().default(""),
   rating: real("rating").notNull().default(0),
   totalProducts: integer("total_products").notNull().default(0),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   ownerId: text("owner_id"),
   imageUrl: text("image_url"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const insertVendorSchema = createInsertSchema(vendorsTable).omit({ id: true, createdAt: true, updatedAt: true });

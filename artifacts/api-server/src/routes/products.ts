@@ -50,7 +50,7 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id)).limit(1);
+  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id as string)).limit(1);
   if (!product) {
     res.status(404).json({ error: "Product not found" });
     return;
@@ -91,21 +91,21 @@ router.post("/", requireRole("admin", "staff"), async (req, res) => {
 });
 
 router.put("/:id", requireRole("admin", "staff"), async (req, res) => {
-  const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id)).limit(1);
+  const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id as string)).limit(1);
   if (!existing) {
     res.status(404).json({ error: "Product not found" });
     return;
   }
   const [product] = await db.update(productsTable)
     .set({ ...req.body, updatedAt: new Date() })
-    .where(eq(productsTable.id, req.params.id))
+    .where(eq(productsTable.id, req.params.id as string))
     .returning();
   const [enriched] = await enrichProducts([product]);
   res.json(enriched);
 });
 
 router.delete("/:id", requireRole("admin"), async (req, res) => {
-  await db.update(productsTable).set({ isActive: false }).where(eq(productsTable.id, req.params.id));
+  await db.update(productsTable).set({ isActive: false }).where(eq(productsTable.id, req.params.id as string));
   res.json({ message: "Product deleted" });
 });
 

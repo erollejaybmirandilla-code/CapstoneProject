@@ -1,15 +1,11 @@
-import { pgTable, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const kycVerificationStatusEnum = pgEnum("kyc_verification_status", [
-  "pending", "approved", "rejected"
-]);
-
-export const kycVerificationsTable = pgTable("kyc_verifications", {
+export const kycVerificationsTable = sqliteTable("kyc_verifications", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().unique(),
-  status: kycVerificationStatusEnum("status").notNull().default("pending"),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   birthDate: text("birth_date").notNull(),
@@ -19,8 +15,8 @@ export const kycVerificationsTable = pgTable("kyc_verifications", {
   idImageUrl: text("id_image_url"),
   selfieUrl: text("selfie_url"),
   reviewNotes: text("review_notes"),
-  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
-  reviewedAt: timestamp("reviewed_at"),
+  submittedAt: integer("submitted_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }),
 });
 
 export const insertKycSchema = createInsertSchema(kycVerificationsTable).omit({ id: true, submittedAt: true, reviewedAt: true });

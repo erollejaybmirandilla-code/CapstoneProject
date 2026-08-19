@@ -1,22 +1,19 @@
-import { pgTable, text, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const roleEnum = pgEnum("role", ["admin", "staff", "customer"]);
-export const kycStatusEnum = pgEnum("kyc_status", ["none", "pending", "approved", "rejected"]);
-
-export const usersTable = pgTable("users", {
+export const usersTable = sqliteTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
   phone: text("phone"),
-  role: roleEnum("role").notNull().default("customer"),
-  isVerified: boolean("is_verified").notNull().default(false),
-  kycStatus: kycStatusEnum("kyc_status").notNull().default("none"),
+  role: text("role", { enum: ["admin", "staff", "customer"] }).notNull().default("customer"),
+  isVerified: integer("is_verified", { mode: "boolean" }).notNull().default(false),
+  kycStatus: text("kyc_status", { enum: ["none", "pending", "approved", "rejected"] }).notNull().default("none"),
   avatarUrl: text("avatar_url"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true, updatedAt: true });
