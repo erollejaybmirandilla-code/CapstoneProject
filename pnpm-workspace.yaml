@@ -8,7 +8,7 @@ allowBuilds:
   '0': '@swc/core'
   '1': better-sqlite3
   '2': esbuild
-  better-sqlite3: true
+  better-sqlite3: set this to true or false
 
 autoInstallPeers: false
 
@@ -41,3 +41,4 @@ overrides:
   zod: 4.3.6
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
   esbuild: 0.27.3
+  "lru-cache@5>yallist": 3.1.1
