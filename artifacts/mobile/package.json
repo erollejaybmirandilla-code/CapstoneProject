@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "EXPO_PUBLIC_API_URL=http://localhost:8080/api expo start --localhost --port 8081",
+    "dev": "EXPO_OFFLINE=true EXPO_PUBLIC_API_URL=http://localhost:8080/api expo start --localhost --port 8081",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
