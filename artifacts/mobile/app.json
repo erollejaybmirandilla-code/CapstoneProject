@@ -27,7 +27,7 @@
       [
         "expo-router",
         {
-          "origin": "http://localhost:8080"
+          "origin": "https://exp.host"
         }
       ],
       "expo-font",
