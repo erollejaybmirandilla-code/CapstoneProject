@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -9,6 +9,7 @@ export const usersTable = sqliteTable("users", {
   name: text("name").notNull(),
   phone: text("phone"),
   role: text("role", { enum: ["admin", "staff", "customer"] }).notNull().default("customer"),
+  vendorId: text("vendor_id"),
   isVerified: integer("is_verified", { mode: "boolean" }).notNull().default(false),
   kycStatus: text("kyc_status", { enum: ["none", "pending", "approved", "rejected"] }).notNull().default("none"),
   avatarUrl: text("avatar_url"),

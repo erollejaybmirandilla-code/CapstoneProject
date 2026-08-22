@@ -1,11 +1,27 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api, SafeUser, loadToken, setToken } from "@/lib/api";
 
+type VendorDetails = {
+  name: string;
+  description: string;
+  location: string;
+  dtiRegistration: string;
+};
+
+type RegisterArgs = {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+  accountType: "customer" | "vendor";
+  vendorDetails?: VendorDetails;
+};
+
 type AuthContextType = {
   user: SafeUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (args: { email: string; password: string; name: string; phone?: string }) => Promise<void>;
+  register: (args: RegisterArgs) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateKycStatus: (verified: boolean) => Promise<void>;
@@ -39,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user);
   }
 
-  async function register(args: { email: string; password: string; name: string; phone?: string }) {
+  async function register(args: RegisterArgs) {
     const res = await api.post<{ user: SafeUser; token: string }>("/auth/register", args);
     setToken(res.token);
     setUser(res.user);
@@ -79,5 +95,5 @@ export function useAuth() {
   return ctx;
 }
 
-export type { SafeUser };
+export type { SafeUser, VendorDetails, RegisterArgs };
 export type UserRole = SafeUser["role"];

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,7 +16,9 @@ export const vendorsTable = sqliteTable("vendors", {
   imageUrl: text("image_url"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  ownerIdx: uniqueIndex("vendors_owner_idx").on(table.ownerId),
+}));
 
 export const insertVendorSchema = createInsertSchema(vendorsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const selectVendorSchema = createSelectSchema(vendorsTable);
