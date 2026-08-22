@@ -92,7 +92,7 @@ export default function CatalogScreen() {
       </View>
 
       {/* Category scroll */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s(colors).catScroll} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s(colors).catScroll} contentContainerStyle={{ paddingHorizontal: 18, gap: 10 }}>
         {CATEGORIES.map((cat) => (
           <Pressable
             key={cat}
