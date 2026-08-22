@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import {
   api,
   Product, Vendor, Category, Order, InventoryItem,
-  AppNotification, WishlistItem, AnalyticsSummary, KycVerification
+  AppNotification, WishlistItem, AnalyticsSummary, KycVerification, SafeUser
 } from "@/lib/api";
 import { useAuth } from "./AuthContext";
 
@@ -16,9 +16,12 @@ type StoreContextType = {
   wishlist: WishlistItem[];
   analytics: AnalyticsSummary | null;
   kycStatus: KycVerification | null;
+  adminUsers: SafeUser[];
+  selectedUser: (SafeUser & { orderStats?: { totalOrders: number; totalSpent: number } }) | null;
 
   isLoadingProducts: boolean;
   isLoadingOrders: boolean;
+  isLoadingUsers: boolean;
 
   fetchProducts: (params?: Record<string, string>) => Promise<Product[]>;
   fetchProduct: (id: string) => Promise<Product | null>;
@@ -30,6 +33,12 @@ type StoreContextType = {
   fetchWishlist: () => Promise<void>;
   fetchAnalytics: (period?: string) => Promise<void>;
   fetchKycStatus: () => Promise<void>;
+
+  fetchAdminUsers: (params?: Record<string, string>) => Promise<void>;
+  fetchUserDetails: (id: string) => Promise<void>;
+  updateUserRole: (id: string, role: string) => Promise<void>;
+  updateUserVerification: (id: string, isVerified: boolean) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
 
   placeOrder: (orderData: {
     paymentMethod: string;
@@ -65,8 +74,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [kycStatus, setKycStatus] = useState<KycVerification | null>(null);
+  const [adminUsers, setAdminUsers] = useState<SafeUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<(SafeUser & { orderStats?: { totalOrders: number; totalSpent: number } }) | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -220,14 +232,53 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setKycStatus(result);
   }, []);
 
+  const fetchAdminUsers = useCallback(async (params: Record<string, string> = {}) => {
+    setIsLoadingUsers(true);
+    try {
+      const query = new URLSearchParams(params).toString();
+      const data = await api.get<{ users: SafeUser[]; total: number }>(`/users${query ? `?${query}` : ""}`);
+      setAdminUsers(data.users);
+    } catch {
+      setAdminUsers([]);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, []);
+
+  const fetchUserDetails = useCallback(async (id: string) => {
+    try {
+      const data = await api.get<SafeUser & { orderStats: { totalOrders: number; totalSpent: number } }>(`/users/${id}`);
+      setSelectedUser(data);
+    } catch {
+      setSelectedUser(null);
+    }
+  }, []);
+
+  const updateUserRole = useCallback(async (id: string, role: string) => {
+    await api.put(`/users/${id}/role`, { role });
+    setAdminUsers(prev => prev.map(u => u.id === id ? { ...u, role: role as any } : u));
+  }, []);
+
+  const updateUserVerification = useCallback(async (id: string, isVerified: boolean) => {
+    await api.put(`/users/${id}/verify`, { isVerified });
+    setAdminUsers(prev => prev.map(u => u.id === id ? { ...u, isVerified } : u));
+  }, []);
+
+  const deleteUser = useCallback(async (id: string) => {
+    await api.delete(`/users/${id}`);
+    setAdminUsers(prev => prev.filter(u => u.id !== id));
+  }, []);
+
   return (
     <StoreContext.Provider value={{
       products, vendors, categories, orders, inventory,
       notifications, wishlist, analytics, kycStatus,
-      isLoadingProducts, isLoadingOrders,
+      adminUsers, selectedUser,
+      isLoadingProducts, isLoadingOrders, isLoadingUsers,
       fetchProducts, fetchProduct, fetchVendors, fetchCategories,
       fetchOrders, fetchInventory, fetchNotifications, fetchWishlist,
       fetchAnalytics, fetchKycStatus,
+      fetchAdminUsers, fetchUserDetails, updateUserRole, updateUserVerification, deleteUser,
       placeOrder, updateOrderStatus, restockProduct,
       addToWishlist, removeFromWishlist,
       markNotificationRead, markAllNotificationsRead,
@@ -244,4 +295,4 @@ export function useStore() {
   return ctx;
 }
 
-export type { Product, Vendor, Category, Order, InventoryItem, AppNotification, WishlistItem };
+export type { Product, Vendor, Category, Order, InventoryItem, AppNotification, WishlistItem, SafeUser };

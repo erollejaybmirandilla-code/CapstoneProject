@@ -147,7 +147,7 @@ export default function ProfileScreen() {
         )}
 
         {user.role === "admin" && (
-          <MenuItem icon="users" label="User Management" onPress={() => {}} colors={colors} />
+          <MenuItem icon="users" label="User Management" onPress={() => router.push("/user-management" as any)} colors={colors} />
         )}
 
         <MenuItem icon="bell" label="Notifications" onPress={() => router.push("/notifications" as any)} colors={colors} />
