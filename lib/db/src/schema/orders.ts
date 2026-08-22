@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -18,7 +18,12 @@ export const ordersTable = sqliteTable("orders", {
   referenceNumber: text("reference_number"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  userIdIdx: index("orders_user_id_idx").on(table.userId),
+  statusIdx: index("orders_status_idx").on(table.status),
+  vendorIdIdx: index("orders_vendor_id_idx").on(table.vendorId),
+  createdAtIdx: index("orders_created_at_idx").on(table.createdAt),
+}));
 
 export const orderItemsTable = sqliteTable("order_items", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
