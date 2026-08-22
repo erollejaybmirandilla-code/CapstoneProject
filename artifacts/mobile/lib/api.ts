@@ -1,15 +1,25 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
+// Cloudflare Tunnel URL for API access (publicly accessible)
+const CLOUDFLARE_API_URL = "https://fighting-flight-hebrew-contributor.trycloudflare.com/api";
+
 const getBaseUrl = () => {
-  if (Platform.OS === "web") {
-    return "/api";
+  // For native platforms (iOS/Android), use the Cloudflare tunnel URL
+  if (Platform.OS !== "web") {
+    return process.env.EXPO_PUBLIC_API_URL || CLOUDFLARE_API_URL;
   }
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) {
-    return `https://${domain}/api`;
+  
+  // For web platform:
+  // - In production/public access, use the full Cloudflare API URL
+  // - In local development, use relative /api path (proxied by Expo dev server)
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl && apiUrl.includes("trycloudflare.com")) {
+    return apiUrl;
   }
-  return process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080/api";
+  
+  // Local development fallback
+  return "/api";
 };
 
 const BASE_URL = getBaseUrl();
@@ -31,6 +41,10 @@ export function setToken(token: string | null) {
 
 export function getToken() {
   return sessionToken;
+}
+
+export function getApiBaseUrl() {
+  return BASE_URL;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
