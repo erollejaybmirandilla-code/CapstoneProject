@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Dimensions,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -18,7 +20,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useStore } from "@/context/StoreContext";
 import { StockBadge } from "@/components/StockBadge";
+import { getImageBaseUrl } from "@/lib/api";
 import type { Product } from "@/lib/api";
+
+const getImageUrl = (path: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${getImageBaseUrl()}${path}`;
+};
 
 export default function ProductDetailScreen() {
   const colors = useColors();
@@ -89,11 +98,29 @@ export default function ProductDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomInset + 100 }}
       >
-        {/* Image */}
+        {/* Image Gallery */}
         <View style={[s(colors).imageWrap, { paddingTop: topInset }]}>
-          <View style={s(colors).image}>
-            <Feather name="package" size={64} color={colors.mutedForeground} />
-          </View>
+          {product.images && product.images.length > 0 ? (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              style={s(colors).image}
+            >
+              {product.images.map((img, idx) => (
+                <Image
+                  key={idx}
+                  source={{ uri: getImageUrl(img) }}
+                  style={s(colors).image}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={s(colors).image}>
+              <Feather name="package" size={64} color={colors.mutedForeground} />
+            </View>
+          )}
           <Pressable style={[s(colors).circleBtn, { top: topInset + 12, left: 16 }]} onPress={() => router.back()}>
             <Feather name="arrow-left" size={20} color={colors.foreground} />
           </Pressable>
@@ -108,6 +135,11 @@ export default function ProductDetailScreen() {
           {product.isBestSeller && (
             <View style={s(colors).bestBadge}>
               <Text style={s(colors).bestBadgeText}>BEST SELLER</Text>
+            </View>
+          )}
+          {product.images && product.images.length > 1 && (
+            <View style={s(colors).imageCounter}>
+              <Text style={s(colors).imageCounterText}>{product.images.length} photos</Text>
             </View>
           )}
         </View>
@@ -249,7 +281,7 @@ export default function ProductDetailScreen() {
 const s = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     imageWrap: { position: "relative", backgroundColor: colors.muted },
-    image: { height: 280, alignItems: "center", justifyContent: "center" },
+    image: { height: 280, width: Platform.OS === "web" ? 400 : Dimensions.get("window").width, alignItems: "center", justifyContent: "center" },
     circleBtn: {
       position: "absolute",
       width: 40,
@@ -262,6 +294,8 @@ const s = (colors: ReturnType<typeof useColors>) =>
     },
     bestBadge: { position: "absolute", bottom: 12, left: 16, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     bestBadgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+    imageCounter: { position: "absolute", bottom: 12, right: 16, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    imageCounterText: { color: "#fff", fontSize: 11, fontFamily: "Inter_500Medium" },
     content: { padding: 20, gap: 14 },
     topRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
     productName: { flex: 1, fontSize: 22, fontFamily: "Inter_700Bold", color: colors.foreground, lineHeight: 28 },
