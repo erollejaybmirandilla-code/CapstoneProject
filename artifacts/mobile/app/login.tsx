@@ -144,33 +144,6 @@ export default function LoginScreen() {
             </Pressable>
           </View>
         </View>
-
-        {/* Demo credentials */}
-        <View style={s(colors).demoSection}>
-          <Text style={s(colors).demoTitle}>Demo Accounts</Text>
-          <View style={s(colors).demoGrid}>
-            {[
-              { role: "Admin", email: "admin@legazpimarket.ph", pass: "admin123", color: "#7C3AED" },
-              { role: "Staff", email: "staff@groyon.ph", pass: "staff123", color: "#2563EB" },
-              { role: "Customer", email: "customer@gmail.com", pass: "customer123", color: "#059669" },
-            ].map((demo) => (
-              <Pressable
-                key={demo.role}
-                style={[s(colors).demoCard, { borderColor: demo.color + "30" }]}
-                onPress={() => {
-                  setEmail(demo.email);
-                  setPassword(demo.pass);
-                }}
-              >
-                <View style={[s(colors).demoRoleBadge, { backgroundColor: demo.color + "15" }]}>
-                  <Text style={[s(colors).demoRole, { color: demo.color }]}>{demo.role}</Text>
-                </View>
-                <Text style={s(colors).demoEmail} numberOfLines={1}>{demo.email}</Text>
-                <Text style={s(colors).demoPass}>{demo.pass}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
