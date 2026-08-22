@@ -2,35 +2,28 @@
 setlocal
 
 REM ============================================
-REM Configuration for LAN Access (Local Network)
+REM Expo Go - LAN Mode (Local Network)
+REM ============================================
+REM Use this when your device and computer are on the same Wi-Fi network.
+REM For public access (anywhere), use run-mobile-tunnel.bat instead.
 REM ============================================
 
-REM Cloudflare Tunnel URL for API (publicly accessible)
-set EXPO_PUBLIC_API_URL=https://fighting-flight-hebrew-contributor.trycloudflare.com/api
-
-REM Expo dev server port
+set EXPO_PUBLIC_API_URL=http://localhost:8080/api
 set PORT=8081
-
-REM ============================================
-REM Start Expo Dev Server (LAN only)
-REM ============================================
 
 cd /d "%~dp0\artifacts\mobile"
 
 echo ============================================
-echo Starting Expo Dev Server (LAN ACCESS ONLY)
+echo Starting Expo Dev Server (LAN MODE)
 echo ============================================
 echo API URL: %EXPO_PUBLIC_API_URL%
 echo Expo Port: %PORT%
 echo.
-echo This mode only works on your local network.
-echo For PUBLIC access (anywhere), use run-mobile-public.bat
-echo.
-echo Scan the QR code with Expo Go app.
-echo Press Ctrl+C to stop the server
+echo NOTE: Device must be on the same Wi-Fi network.
+echo For public access from anywhere, use run-mobile-tunnel.bat
 echo ============================================
+echo.
 
-REM Use --lan for local network access only
-node_modules/.bin/expo start --port 8081 --lan --go --clear
+node_modules/.bin/expo start --port %PORT% --lan --go --clear
 
 pause

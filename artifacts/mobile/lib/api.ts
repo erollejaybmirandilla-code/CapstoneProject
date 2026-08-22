@@ -1,24 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-// Cloudflare Tunnel URL for API access (publicly accessible)
-const CLOUDFLARE_API_URL = "https://fighting-flight-hebrew-contributor.trycloudflare.com/api";
-
 const getBaseUrl = () => {
-  // For native platforms (iOS/Android), use the Cloudflare tunnel URL
+  // For native platforms (iOS/Android)
   if (Platform.OS !== "web") {
-    return process.env.EXPO_PUBLIC_API_URL || CLOUDFLARE_API_URL;
+    // Use environment variable if set (for production or custom development)
+    if (process.env.EXPO_PUBLIC_API_URL) {
+      return process.env.EXPO_PUBLIC_API_URL;
+    }
+    // Default: localhost for local development
+    // In production, this should be your deployed API URL
+    return "http://localhost:8080/api";
   }
   
-  // For web platform:
-  // - In production/public access, use the full Cloudflare API URL
-  // - In local development, use relative /api path (proxied by Expo dev server)
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl && apiUrl.includes("trycloudflare.com")) {
-    return apiUrl;
-  }
-  
-  // Local development fallback
+  // For web platform - use relative path (proxied by Expo dev server)
   return "/api";
 };
 
