@@ -9,7 +9,7 @@ import { logger } from "./lib/logger.js";
 
 const app: Express = express();
 
-// Trust proxy for secure cookies behind reverse proxy (Cloudflare)
+// Trust proxy for secure cookies behind reverse proxy
 app.set("trust proxy", 1);
 
 app.use(
@@ -89,10 +89,10 @@ app.use(session({
   saveUninitialized: false,
   name: "sessionId",
   cookie: {
-    secure: true, // Requires HTTPS (Cloudflare provides this)
+    secure: process.env.NODE_ENV === "production", // HTTPS only in production
     httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000,
-    sameSite: "none", // Required for cross-origin with credentials
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // lax for local development
   },
 }));
 
