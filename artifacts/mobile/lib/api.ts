@@ -47,6 +47,15 @@ export function getApiBaseUrl() {
   return BASE_URL;
 }
 
+export function getImageBaseUrl() {
+  // Remove /api suffix to get the base URL for static files
+  const apiBase = BASE_URL;
+  if (apiBase.endsWith("/api")) {
+    return apiBase.slice(0, -4);
+  }
+  return apiBase;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

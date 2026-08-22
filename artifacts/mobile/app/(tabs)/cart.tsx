@@ -15,6 +15,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { useCart } from "@/context/CartContext";
+import { getImageBaseUrl } from "@/lib/api";
+
+const getImageUrl = (path: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${getImageBaseUrl()}${path}`;
+};
 
 export default function CartScreen() {
   const colors = useColors();
@@ -68,7 +75,7 @@ export default function CartScreen() {
           <View style={s(colors).itemCard}>
             <View style={s(colors).itemImage}>
               {item.product.images?.[0] ? (
-                <Image source={{ uri: item.product.images[0] }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                <Image source={{ uri: getImageUrl(item.product.images[0]) }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
               ) : (
                 <Feather name="package" size={28} color={colors.mutedForeground} />
               )}

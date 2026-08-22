@@ -14,7 +14,14 @@ import { useColors } from "@/hooks/useColors";
 import { useCart } from "@/context/CartContext";
 import { useStore } from "@/context/StoreContext";
 import { useAuth } from "@/context/AuthContext";
+import { getImageBaseUrl } from "@/lib/api";
 import type { Product } from "@/lib/api";
+
+const getImageUrl = (path: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${getImageBaseUrl()}${path}`;
+};
 
 interface Props {
   product: Product;
@@ -57,7 +64,7 @@ export function ProductCard({ product, compact = false }: Props) {
       >
         <View style={s.compactImageWrap}>
           {product.images?.[0] ? (
-            <Image source={{ uri: product.images[0] }} style={s.compactImage} />
+            <Image source={{ uri: getImageUrl(product.images[0]) }} style={s.compactImage} />
           ) : (
             <View style={[s.compactImage, s.imagePlaceholder]}>
               <Feather name="package" size={28} color={colors.mutedForeground} />
@@ -85,7 +92,7 @@ export function ProductCard({ product, compact = false }: Props) {
     >
       <View style={s.imageWrap}>
         {product.images?.[0] ? (
-          <Image source={{ uri: product.images[0] }} style={s.image} />
+          <Image source={{ uri: getImageUrl(product.images[0]) }} style={s.image} />
         ) : (
           <View style={[s.image, s.imagePlaceholder]}>
             <Feather name="package" size={40} color={colors.mutedForeground} />

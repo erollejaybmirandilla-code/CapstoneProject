@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useStore } from "@/context/StoreContext";
 import { useAuth } from "@/context/AuthContext";
+import { getImageBaseUrl } from "@/lib/api";
 import type { Product } from "@/lib/api";
 
 type ProductFormData = {
@@ -56,6 +57,12 @@ const emptyForm: ProductFormData = {
   tags: "",
   isBestSeller: false,
   isSeasonal: false,
+};
+
+const getImageUrl = (path: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${getImageBaseUrl()}${path}`;
 };
 
 export default function ProductManagementScreen() {
@@ -151,8 +158,18 @@ export default function ProductManagementScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.price || !form.categoryId || !form.vendorId) {
-      Alert.alert("Validation Error", "Please fill in all required fields: Name, Price, Category, Vendor");
+    const missingFields: string[] = [];
+    if (!form.name.trim()) missingFields.push("Name");
+    if (!form.price || isNaN(parseFloat(form.price))) missingFields.push("Price");
+    if (!form.categoryId) missingFields.push("Category");
+    if (!form.vendorId) missingFields.push("Vendor");
+    if (!form.stock || isNaN(parseInt(form.stock))) missingFields.push("Stock");
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        "Validation Error",
+        `Please fill in the following required fields:\n\n• ${missingFields.join("\n• ")}`
+      );
       return;
     }
 
@@ -297,7 +314,7 @@ export default function ProductManagementScreen() {
                 <View style={s(colors).productImageContainer}>
                   {product.images && product.images.length > 0 ? (
                     <Image
-                      source={{ uri: `http://localhost:8080${product.images[0]}` }}
+                      source={{ uri: getImageUrl(product.images[0]) }}
                       style={s(colors).productImage}
                     />
                   ) : (
@@ -359,7 +376,7 @@ export default function ProductManagementScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                   {(selectedProduct.images || []).map((img, idx) => (
                     <View key={idx} style={s(colors).imageWrapper}>
-                      <Image source={{ uri: `http://localhost:8080${img}` }} style={s(colors).uploadedImage} />
+                      <Image source={{ uri: getImageUrl(img) }} style={s(colors).uploadedImage} />
                       <Pressable
                         onPress={() => handleRemoveImage(selectedProduct.id, idx)}
                         style={s(colors).removeImageBtn}
@@ -502,19 +519,32 @@ export default function ProductManagementScreen() {
               {user.role === "admin" && (
                 <View style={s(colors).inputGroup}>
                   <Text style={s(colors).label}>Vendor *</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s(colors).chipContainer}>
-                    {vendors.map((vendor) => (
-                      <Pressable
-                        key={vendor.id}
-                        onPress={() => setForm(prev => ({ ...prev, vendorId: vendor.id }))}
-                        style={[s(colors).chip, form.vendorId === vendor.id && s(colors).chipActive]}
-                      >
-                        <Text style={[s(colors).chipText, form.vendorId === vendor.id && s(colors).chipTextActive]}>
-                          {vendor.name}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
+                  {vendors.length === 0 ? (
+                    <View style={[s(colors).input, { backgroundColor: colors.border + "20" }]}>
+                      <Text style={{ color: colors.destructive, fontFamily: "Inter_400Regular" }}>
+                        No vendors available. Please create a vendor first.
+                      </Text>
+                    </View>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s(colors).chipContainer}>
+                      {vendors.map((vendor) => (
+                        <Pressable
+                          key={vendor.id}
+                          onPress={() => setForm(prev => ({ ...prev, vendorId: vendor.id }))}
+                          style={[s(colors).chip, form.vendorId === vendor.id && s(colors).chipActive]}
+                        >
+                          <Text style={[s(colors).chipText, form.vendorId === vendor.id && s(colors).chipTextActive]}>
+                            {vendor.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  )}
+                  {!form.vendorId && vendors.length > 0 && (
+                    <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 4, fontFamily: "Inter_400Regular" }}>
+                      Please select a vendor
+                    </Text>
+                  )}
                 </View>
               )}
             </View>
