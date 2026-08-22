@@ -3,6 +3,7 @@ import cors from "cors";
 import session from "express-session";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import path from "node:path";
 import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
 
@@ -44,5 +45,6 @@ app.use(session({
 }));
 
 app.use("/api", router);
+app.use("/uploads", express.static(path.resolve(process.cwd(), "data/uploads")));
 
 export default app;

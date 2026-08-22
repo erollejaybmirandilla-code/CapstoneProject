@@ -65,6 +65,36 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
+export async function uploadProductImage(productId: string, imageUri: string): Promise<{ imageUrl: string }> {
+  const formData = new FormData();
+  const filename = imageUri.split("/").pop() || "image.jpg";
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : "image/jpeg";
+
+  formData.append("image", {
+    uri: imageUri,
+    name: filename,
+    type,
+  } as any);
+
+  const res = await fetch(`${BASE_URL}/products/${productId}/images`, {
+    method: "POST",
+    headers: {
+      "Authorization": sessionToken ? `Bearer ${sessionToken}` : "",
+      "X-Session-Token": sessionToken || "",
+    },
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export type SafeUser = {
   id: string;
   email: string;

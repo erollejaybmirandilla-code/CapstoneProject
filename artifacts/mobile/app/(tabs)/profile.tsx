@@ -143,6 +143,7 @@ export default function ProfileScreen() {
           <>
             <MenuItem icon="bar-chart-2" label="Analytics Dashboard" onPress={() => router.push("/analytics" as any)} colors={colors} />
             <MenuItem icon="archive" label="Inventory Management" onPress={() => router.push("/(tabs)/inventory" as any)} colors={colors} />
+            <MenuItem icon="package" label="Product Management" onPress={() => router.push("/product-management" as any)} colors={colors} />
           </>
         )}
 

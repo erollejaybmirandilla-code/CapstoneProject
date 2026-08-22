@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
-  api,
+  api, uploadProductImage,
   Product, Vendor, Category, Order, InventoryItem,
   AppNotification, WishlistItem, AnalyticsSummary, KycVerification, SafeUser
 } from "@/lib/api";
@@ -18,10 +18,12 @@ type StoreContextType = {
   kycStatus: KycVerification | null;
   adminUsers: SafeUser[];
   selectedUser: (SafeUser & { orderStats?: { totalOrders: number; totalSpent: number } }) | null;
+  selectedProduct: Product | null;
 
   isLoadingProducts: boolean;
   isLoadingOrders: boolean;
   isLoadingUsers: boolean;
+  isManagingProduct: boolean;
 
   fetchProducts: (params?: Record<string, string>) => Promise<Product[]>;
   fetchProduct: (id: string) => Promise<Product | null>;
@@ -39,6 +41,13 @@ type StoreContextType = {
   updateUserRole: (id: string, role: string) => Promise<void>;
   updateUserVerification: (id: string, isVerified: boolean) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+
+  createProduct: (data: Partial<Product>) => Promise<Product>;
+  updateProduct: (id: string, data: Partial<Product>) => Promise<Product>;
+  deleteProduct: (id: string) => Promise<void>;
+  fetchProductForEdit: (id: string) => Promise<Product | null>;
+  uploadImage: (productId: string, imageUri: string) => Promise<string>;
+  removeProductImage: (productId: string, imageIndex: number) => Promise<void>;
 
   placeOrder: (orderData: {
     paymentMethod: string;
@@ -76,9 +85,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [kycStatus, setKycStatus] = useState<KycVerification | null>(null);
   const [adminUsers, setAdminUsers] = useState<SafeUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<(SafeUser & { orderStats?: { totalOrders: number; totalSpent: number } }) | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isManagingProduct, setIsManagingProduct] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -269,16 +280,80 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAdminUsers(prev => prev.filter(u => u.id !== id));
   }, []);
 
+  const createProduct = useCallback(async (data: Partial<Product>) => {
+    setIsManagingProduct(true);
+    try {
+      const product = await api.post<Product>("/products", data);
+      setProducts(prev => [product, ...prev]);
+      return product;
+    } finally {
+      setIsManagingProduct(false);
+    }
+  }, []);
+
+  const updateProduct = useCallback(async (id: string, data: Partial<Product>) => {
+    setIsManagingProduct(true);
+    try {
+      const product = await api.put<Product>(`/products/${id}`, data);
+      setProducts(prev => prev.map(p => p.id === id ? product : p));
+      setSelectedProduct(product);
+      return product;
+    } finally {
+      setIsManagingProduct(false);
+    }
+  }, []);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    await api.delete(`/products/${id}`);
+    setProducts(prev => prev.filter(p => p.id !== id));
+    setSelectedProduct(null);
+  }, []);
+
+  const fetchProductForEdit = useCallback(async (id: string) => {
+    setIsManagingProduct(true);
+    try {
+      const product = await api.get<Product>(`/products/${id}`);
+      setSelectedProduct(product);
+      return product;
+    } finally {
+      setIsManagingProduct(false);
+    }
+  }, []);
+
+  const uploadImage = useCallback(async (productId: string, imageUri: string) => {
+    const { imageUrl } = await uploadProductImage(productId, imageUri);
+    setProducts(prev => prev.map(p => {
+      if (p.id === productId) {
+        return { ...p, images: [...(p.images || []), imageUrl] };
+      }
+      return p;
+    }));
+    setSelectedProduct(prev => {
+      if (prev && prev.id === productId) {
+        return { ...prev, images: [...(prev.images || []), imageUrl] };
+      }
+      return prev;
+    });
+    return imageUrl;
+  }, []);
+
+  const removeProductImage = useCallback(async (productId: string, imageIndex: number) => {
+    const product = await api.delete<Product>(`/products/${productId}/images/${imageIndex}`);
+    setProducts(prev => prev.map(p => p.id === productId ? product : p));
+    setSelectedProduct(product);
+  }, []);
+
   return (
     <StoreContext.Provider value={{
       products, vendors, categories, orders, inventory,
       notifications, wishlist, analytics, kycStatus,
-      adminUsers, selectedUser,
-      isLoadingProducts, isLoadingOrders, isLoadingUsers,
+      adminUsers, selectedUser, selectedProduct,
+      isLoadingProducts, isLoadingOrders, isLoadingUsers, isManagingProduct,
       fetchProducts, fetchProduct, fetchVendors, fetchCategories,
       fetchOrders, fetchInventory, fetchNotifications, fetchWishlist,
       fetchAnalytics, fetchKycStatus,
       fetchAdminUsers, fetchUserDetails, updateUserRole, updateUserVerification, deleteUser,
+      createProduct, updateProduct, deleteProduct, fetchProductForEdit, uploadImage, removeProductImage,
       placeOrder, updateOrderStatus, restockProduct,
       addToWishlist, removeFromWishlist,
       markNotificationRead, markAllNotificationsRead,

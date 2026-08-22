@@ -1,4 +1,8 @@
 import { Router } from "express";
+import multer from "multer";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { productsTable, vendorsTable, categoriesTable } from "@workspace/db/schema";
 import { eq, and, ilike, asc, desc, sql } from "drizzle-orm";
@@ -6,6 +10,30 @@ import { requireRole } from "../lib/auth.js";
 import { z } from "zod";
 
 const router = Router();
+
+const uploadDir = path.resolve(process.cwd(), "data/uploads/products");
+fs.mkdir(uploadDir, { recursive: true }).catch(() => {});
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${randomUUID()}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPEG, PNG, and WebP images are allowed"));
+    }
+  },
+});
 
 async function enrichProducts(products: typeof productsTable.$inferSelect[]) {
   const vendors = await db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable);
@@ -107,6 +135,63 @@ router.put("/:id", requireRole("admin", "staff"), async (req, res) => {
 router.delete("/:id", requireRole("admin"), async (req, res) => {
   await db.update(productsTable).set({ isActive: false }).where(eq(productsTable.id, req.params.id as string));
   res.json({ message: "Product deleted" });
+});
+
+router.post("/:id/images", requireRole("admin", "staff"), upload.single("image"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "No image file provided" });
+    return;
+  }
+
+  const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id as string)).limit(1);
+  if (!existing) {
+    await fs.unlink(req.file.path).catch(() => {});
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  const imageUrl = `/uploads/products/${req.file.filename}`;
+  const updatedImages = [...(existing.images || []), imageUrl];
+
+  await db.update(productsTable)
+    .set({ images: updatedImages, updatedAt: new Date() })
+    .where(eq(productsTable.id, req.params.id as string));
+
+  res.status(201).json({ imageUrl, images: updatedImages });
+});
+
+router.delete("/:id/images/:imageIndex", requireRole("admin", "staff"), async (req, res) => {
+  const imageIndex = parseInt(req.params.imageIndex as string);
+  if (isNaN(imageIndex)) {
+    res.status(400).json({ error: "Invalid image index" });
+    return;
+  }
+
+  const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id as string)).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  const images = existing.images || [];
+  if (imageIndex < 0 || imageIndex >= images.length) {
+    res.status(400).json({ error: "Image index out of range" });
+    return;
+  }
+
+  const removedUrl = images[imageIndex];
+  const updatedImages = images.filter((_, i) => i !== imageIndex);
+
+  await db.update(productsTable)
+    .set({ images: updatedImages, updatedAt: new Date() })
+    .where(eq(productsTable.id, req.params.id as string));
+
+  if (removedUrl.startsWith("/uploads/")) {
+    const filePath = path.resolve(process.cwd(), "data", removedUrl);
+    await fs.unlink(filePath).catch(() => {});
+  }
+
+  res.json({ images: updatedImages });
 });
 
 export default router;
