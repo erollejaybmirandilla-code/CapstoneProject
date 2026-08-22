@@ -36,14 +36,23 @@ const upload = multer({
 });
 
 async function enrichProducts(products: typeof productsTable.$inferSelect[]) {
-  const vendors = await db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable);
-  const categories = await db.select({ id: categoriesTable.id, name: categoriesTable.name }).from(categoriesTable);
-  const vendorMap = Object.fromEntries(vendors.map(v => [v.id, v.name]));
-  const categoryMap = Object.fromEntries(categories.map(c => [c.id, c.name]));
+  if (products.length === 0) return [];
+  
+  const vendorIds = [...new Set(products.map(p => p.vendorId))];
+  const categoryIds = [...new Set(products.map(p => p.categoryId))];
+  
+  const [vendors, categories] = await Promise.all([
+    db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable),
+    db.select({ id: categoriesTable.id, name: categoriesTable.name }).from(categoriesTable),
+  ]);
+  
+  const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
+  const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+  
   return products.map(p => ({
     ...p,
-    vendorName: vendorMap[p.vendorId] ?? null,
-    categoryName: categoryMap[p.categoryId] ?? null,
+    vendorName: vendorMap.get(p.vendorId) ?? null,
+    categoryName: categoryMap.get(p.categoryId) ?? null,
   }));
 }
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { cartItemsTable, productsTable, vendorsTable, categoriesTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { z } from "zod";
 
@@ -9,24 +9,42 @@ const router = Router();
 
 async function getCartResponse(userId: string) {
   const items = await db.select().from(cartItemsTable).where(eq(cartItemsTable.userId, userId));
-  const vendors = await db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable);
-  const categories = await db.select({ id: categoriesTable.id, name: categoriesTable.name }).from(categoriesTable);
-  const vendorMap = Object.fromEntries(vendors.map(v => [v.id, v.name]));
-  const categoryMap = Object.fromEntries(categories.map(c => [c.id, c.name]));
+  
+  if (items.length === 0) {
+    return { items: [], subtotal: 0, totalItems: 0 };
+  }
+  
+  const productIds = [...new Set(items.map(i => i.productId))];
+  
+  const [products, vendors, categories] = await Promise.all([
+    db.select().from(productsTable).where(inArray(productsTable.id, productIds)),
+    db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable),
+    db.select({ id: categoriesTable.id, name: categoriesTable.name }).from(categoriesTable),
+  ]);
+  
+  const productMap = new Map(products.map(p => [p.id, p]));
+  const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
+  const categoryMap = new Map(categories.map(c => [c.id, c.name]));
 
-  const enrichedItems = await Promise.all(items.map(async (item) => {
-    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId)).limit(1);
-    return {
-      ...item,
-      product: product ? { ...product, vendorName: vendorMap[product.vendorId] ?? null, categoryName: categoryMap[product.categoryId] ?? null } : null,
-    };
-  }));
+  const enrichedItems = items
+    .map(item => {
+      const product = productMap.get(item.productId);
+      if (!product) return null;
+      return {
+        ...item,
+        product: {
+          ...product,
+          vendorName: vendorMap.get(product.vendorId) ?? null,
+          categoryName: categoryMap.get(product.categoryId) ?? null,
+        },
+      };
+    })
+    .filter((i): i is NonNullable<typeof i> => i !== null);
 
-  const validItems = enrichedItems.filter(i => i.product !== null);
-  const subtotal = validItems.reduce((sum, i) => sum + i.product!.price * i.quantity, 0);
-  const totalItems = validItems.reduce((sum, i) => sum + i.quantity, 0);
+  const subtotal = enrichedItems.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  const totalItems = enrichedItems.reduce((sum, i) => sum + i.quantity, 0);
 
-  return { items: validItems, subtotal, totalItems };
+  return { items: enrichedItems, subtotal, totalItems };
 }
 
 router.use(requireAuth);

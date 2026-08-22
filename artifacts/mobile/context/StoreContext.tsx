@@ -276,8 +276,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteUser = useCallback(async (id: string) => {
-    await api.delete(`/users/${id}`);
-    setAdminUsers(prev => prev.filter(u => u.id !== id));
+    if (!id || typeof id !== 'string') {
+      throw new Error("Invalid user ID provided");
+    }
+    
+    try {
+      await api.delete(`/users/${id}`);
+      setAdminUsers(prev => prev.filter(u => u.id !== id));
+      setSelectedUser(prev => prev?.id === id ? null : prev);
+    } catch (error: any) {
+      // Refresh user list to ensure UI matches server state
+      await fetchAdminUsers();
+      throw new Error(error.message || "Failed to delete user");
+    }
   }, []);
 
   const createProduct = useCallback(async (data: Partial<Product>) => {

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { productsTable, vendorsTable, inventoryLogsTable, usersTable } from "@workspace/db/schema";
-import { eq, and, lte, desc } from "drizzle-orm";
+import { eq, and, lte, desc, inArray } from "drizzle-orm";
 import { requireRole } from "../lib/auth.js";
 import { z } from "zod";
 
@@ -86,11 +86,32 @@ router.get("/logs", async (req, res) => {
     .orderBy(desc(inventoryLogsTable.createdAt))
     .limit(parseInt(limit));
 
-  const enriched = await Promise.all(logs.map(async log => {
-    const [product] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, log.productId)).limit(1);
-    const [user] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, log.userId)).limit(1);
-    return { ...log, productName: product?.name ?? null, userName: user?.name ?? null };
+  if (logs.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const productIds = [...new Set(logs.map(l => l.productId))];
+  const userIds = [...new Set(logs.map(l => l.userId))];
+
+  const [products, users] = await Promise.all([
+    db.select({ id: productsTable.id, name: productsTable.name })
+      .from(productsTable)
+      .where(inArray(productsTable.id, productIds)),
+    db.select({ id: usersTable.id, name: usersTable.name })
+      .from(usersTable)
+      .where(inArray(usersTable.id, userIds)),
+  ]);
+
+  const productMap = new Map(products.map(p => [p.id, p.name]));
+  const userMap = new Map(users.map(u => [u.id, u.name]));
+
+  const enriched = logs.map(log => ({
+    ...log,
+    productName: productMap.get(log.productId) ?? null,
+    userName: userMap.get(log.userId) ?? null,
   }));
+  
   res.json(enriched);
 });
 

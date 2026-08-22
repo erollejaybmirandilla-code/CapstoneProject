@@ -7,10 +7,34 @@ import { z } from "zod";
 
 const router = Router();
 
-async function enrichOrder(order: typeof ordersTable.$inferSelect) {
-  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
-  const [customer] = await db.select({ name: usersTable.name, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, order.userId)).limit(1);
-  return { ...order, items, customerName: customer?.name ?? null, customerEmail: customer?.email ?? null };
+async function enrichOrders(orders: (typeof ordersTable.$inferSelect)[]) {
+  if (orders.length === 0) return [];
+  
+  const orderIds = orders.map(o => o.id);
+  const userIds = [...new Set(orders.map(o => o.userId))];
+  
+  const [items, users] = await Promise.all([
+    db.select().from(orderItemsTable).where(inArray(orderItemsTable.orderId, orderIds)),
+    db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+      .from(usersTable)
+      .where(inArray(usersTable.id, userIds)),
+  ]);
+  
+  const itemsByOrder = new Map<string, typeof items>();
+  for (const item of items) {
+    const orderItems = itemsByOrder.get(item.orderId) || [];
+    orderItems.push(item);
+    itemsByOrder.set(item.orderId, orderItems);
+  }
+  
+  const userMap = new Map(users.map(u => [u.id, u]));
+  
+  return orders.map(order => ({
+    ...order,
+    items: itemsByOrder.get(order.id) || [],
+    customerName: userMap.get(order.userId)?.name ?? null,
+    customerEmail: userMap.get(order.userId)?.email ?? null,
+  }));
 }
 
 router.use(requireAuth);
@@ -24,15 +48,17 @@ router.get("/", async (req, res) => {
   else if (queryUserId) conditions.push(eq(ordersTable.userId, queryUserId));
   if (status) conditions.push(eq(ordersTable.status, status as any));
 
-  const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(ordersTable).where(conditions.length ? and(...conditions) : undefined);
-  const orders = await db.select().from(ordersTable)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(ordersTable.createdAt))
-    .limit(parseInt(limit))
-    .offset(parseInt(offset));
+  const [countResult, orders] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(ordersTable).where(conditions.length ? and(...conditions) : undefined),
+    db.select().from(ordersTable)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(ordersTable.createdAt))
+      .limit(parseInt(limit))
+      .offset(parseInt(offset)),
+  ]);
 
-  const enriched = await Promise.all(orders.map(enrichOrder));
-  res.json({ orders: enriched, total: Number(countResult.count), offset: parseInt(offset), limit: parseInt(limit) });
+  const enriched = await enrichOrders(orders);
+  res.json({ orders: enriched, total: Number(countResult[0]?.count ?? 0), offset: parseInt(offset), limit: parseInt(limit) });
 });
 
 router.get("/:id", async (req, res) => {
@@ -46,7 +72,8 @@ router.get("/:id", async (req, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  res.json(await enrichOrder(order));
+  const [enriched] = await enrichOrders([order]);
+  res.json(enriched);
 });
 
 const createOrderSchema = z.object({
@@ -72,13 +99,18 @@ router.post("/", async (req, res) => {
   const userId = req.session.userId!;
 
   const productIds = items.map(i => i.productId);
-  const products = await db.select().from(productsTable).where(inArray(productsTable.id, productIds));
-  const productMap = Object.fromEntries(products.map(p => [p.id, p]));
+  const [products, vendors] = await Promise.all([
+    db.select().from(productsTable).where(inArray(productsTable.id, productIds)),
+    db.select({ id: vendorsTable.id, name: vendorsTable.name }).from(vendorsTable),
+  ]);
+  
+  const productMap = new Map(products.map(p => [p.id, p]));
+  const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
 
   let subtotal = 0;
   const orderItemsData = [];
   for (const item of items) {
-    const product = productMap[item.productId];
+    const product = productMap.get(item.productId);
     if (!product) {
       res.status(400).json({ error: `Product ${item.productId} not found` });
       return;
@@ -88,15 +120,14 @@ router.post("/", async (req, res) => {
       return;
     }
     subtotal += product.price * item.quantity;
-    const vendor = await db.select({ name: vendorsTable.name }).from(vendorsTable).where(eq(vendorsTable.id, product.vendorId)).limit(1);
     orderItemsData.push({
       productId: product.id,
       productName: product.name,
-      productImage: product.images[0] ?? null,
+      productImage: product.images?.[0] ?? null,
       price: product.price,
       quantity: item.quantity,
       vendorId: product.vendorId,
-      vendorName: vendor[0]?.name ?? null,
+      vendorName: vendorMap.get(product.vendorId) ?? null,
     });
   }
 
@@ -119,7 +150,7 @@ router.post("/", async (req, res) => {
   await db.insert(orderItemsTable).values(orderItemsData.map(i => ({ ...i, orderId: order.id })));
 
   for (const item of items) {
-    const product = productMap[item.productId];
+    const product = productMap.get(item.productId);
     if (!product) continue;
     const newStock = product.stock - item.quantity;
     await db.update(productsTable).set({ stock: newStock }).where(eq(productsTable.id, item.productId));
@@ -145,7 +176,8 @@ router.post("/", async (req, res) => {
     relatedId: order.id,
   });
 
-  res.status(201).json(await enrichOrder(order));
+  const [enriched] = await enrichOrders([order]);
+  res.status(201).json(enriched);
 });
 
 const updateStatusSchema = z.object({
@@ -176,7 +208,8 @@ router.put("/:id/status", requireRole("admin", "staff"), async (req, res) => {
     relatedId: order.id,
   });
 
-  res.json(await enrichOrder(order));
+  const [enriched] = await enrichOrders([order]);
+  res.json(enriched);
 });
 
 export default router;

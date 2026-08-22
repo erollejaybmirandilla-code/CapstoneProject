@@ -80,14 +80,25 @@ export default function UserManagementScreen() {
     await updateUserVerification(userId, !currentStatus);
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
+  const handleDeleteUser = (userId: string, userName: string) => {
     if (userId === currentUser.id) {
       Alert.alert("Error", "You cannot delete your own account.");
       return;
     }
     Alert.alert("Delete User", `Are you sure you want to delete ${userName}?`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteUser(userId) },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteUser(userId);
+            setDetailModalVisible(false);
+          } catch (error: any) {
+            Alert.alert("Error", error.message || "Failed to delete user");
+          }
+        },
+      },
     ]);
   };
 
