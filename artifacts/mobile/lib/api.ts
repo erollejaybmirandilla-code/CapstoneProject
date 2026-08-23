@@ -86,8 +86,14 @@ export const api = {
 export async function uploadProductImage(productId: string, imageUri: string): Promise<{ imageUrl: string }> {
   const formData = new FormData();
   const filename = imageUri.split("/").pop() || "image.jpg";
-  const match = /\.(\w+)$/.exec(filename);
-  const type = match ? `image/${match[1]}` : "image/jpeg";
+  const ext = filename.split(".").pop()?.toLowerCase() || "jpg";
+  const mimeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+  };
+  const type = mimeMap[ext] || "image/jpeg";
 
   formData.append("image", {
     uri: imageUri,
