@@ -1,14 +1,20 @@
 @echo off
 setlocal
 
-REM ============================================
-REM Expo Go - LAN Mode (Local Network)
-REM ============================================
-REM Use this when your device and computer are on the same Wi-Fi network.
-REM For public access (anywhere), use run-mobile-tunnel.bat instead.
-REM ============================================
+REM Get local IP address
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /R "IPv4"') do (
+    for /f "tokens=1 delims= " %%b in ("%%a") do (
+        set LOCAL_IP=%%b
+        goto :found
+    )
+)
 
-set EXPO_PUBLIC_API_URL=http://localhost:8080/api
+:found
+echo Detected local IP: %LOCAL_IP%
+echo API URL will be: http://%LOCAL_IP%:8080/api
+echo.
+
+set EXPO_PUBLIC_API_URL=http://%LOCAL_IP%:8080/api
 set PORT=8081
 
 cd /d "%~dp0\artifacts\mobile"
@@ -19,8 +25,7 @@ echo ============================================
 echo API URL: %EXPO_PUBLIC_API_URL%
 echo Expo Port: %PORT%
 echo.
-echo NOTE: Device must be on the same Wi-Fi network.
-echo For public access from anywhere, use run-mobile-tunnel.bat
+echo IMPORTANT: Phone and computer must be on SAME WiFi.
 echo ============================================
 echo.
 

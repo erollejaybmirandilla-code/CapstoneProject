@@ -2,31 +2,24 @@
 setlocal
 
 REM ============================================
-REM Start Expo with Built-In Tunnel
-REM No external services (ngrok/cloudflare) required
+REM run-mobile-tunnel.bat
+REM ============================================
+REM NOTE: Tunnel mode requires ngrok, which has been removed.
+REM Use LAN mode instead: run-mobile.bat or run-all.bat
 REM ============================================
 
-set EXPO_PUBLIC_API_URL=http://localhost:8080/api
-set PORT=8081
-
-cd /d "%~dp0\artifacts\mobile"
-
 echo ============================================
-echo Starting Expo Dev Server (TUNNEL MODE)
+echo TUNNEL MODE UNAVAILABLE
 echo ============================================
 echo.
-echo This uses Expo's built-in tunnel feature.
-echo No external tunnel services required.
+echo Tunnel mode has been removed.
 echo.
-echo API URL: %EXPO_PUBLIC_API_URL%
+echo Use LAN mode instead:
+echo   run-mobile.bat
+echo   run-all.bat
 echo.
-echo IMPORTANT: First time? Login to Expo:
-echo   npx expo login
-echo.
-echo The app will be accessible from ANYWHERE.
+echo Make sure your device is on the SAME WiFi.
 echo ============================================
 echo.
-
-node_modules/.bin\expo start --port %PORT% --tunnel --go --clear
 
 pause
