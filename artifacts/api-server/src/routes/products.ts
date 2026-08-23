@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { productsTable, vendorsTable, categoriesTable } from "@workspace/db/schema";
-import { eq, and, ilike, asc, desc, sql } from "drizzle-orm";
+import { eq, and, like, asc, desc, sql } from "drizzle-orm";
 import { requireRole } from "../lib/auth.js";
 import { z } from "zod";
 
@@ -64,7 +64,7 @@ router.get("/", async (req, res) => {
   if (vendorId) conditions.push(eq(productsTable.vendorId, vendorId));
   if (isBestSeller === "true") conditions.push(eq(productsTable.isBestSeller, true));
   if (isSeasonal === "true") conditions.push(eq(productsTable.isSeasonal, true));
-  if (search) conditions.push(ilike(productsTable.name, `%${search}%`));
+  if (search) conditions.push(like(productsTable.name, `%${search}%`));
 
   let orderBy;
   switch (sort) {

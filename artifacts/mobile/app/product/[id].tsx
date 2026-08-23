@@ -106,18 +106,19 @@ export default function ProductDetailScreen() {
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               style={s(colors).image}
+              contentContainerStyle={s(colors).imageContent}
             >
               {product.images.map((img, idx) => (
                 <Image
                   key={idx}
                   source={{ uri: getImageUrl(img) }}
-                  style={s(colors).image}
+                  style={[s(colors).image, s(colors).imageContent]}
                   resizeMode="cover"
                 />
               ))}
             </ScrollView>
           ) : (
-            <View style={s(colors).image}>
+            <View style={[s(colors).image, s(colors).imageContent]}>
               <Feather name="package" size={64} color={colors.mutedForeground} />
             </View>
           )}
@@ -281,7 +282,8 @@ export default function ProductDetailScreen() {
 const s = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     imageWrap: { position: "relative", backgroundColor: colors.muted },
-    image: { height: 280, width: Platform.OS === "web" ? 400 : Dimensions.get("window").width, alignItems: "center", justifyContent: "center" },
+    image: { height: 280, width: Platform.OS === "web" ? 400 : Dimensions.get("window").width },
+    imageContent: { alignItems: "center", justifyContent: "center" },
     circleBtn: {
       position: "absolute",
       width: 40,
