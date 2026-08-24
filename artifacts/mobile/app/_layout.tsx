@@ -29,23 +29,18 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {!user ? (
-        <>
-          <Stack.Screen name="login" />
-          <Stack.Screen name="register" />
-        </>
-      ) : (
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="product/[id]" options={{ presentation: "card" }} />
-          <Stack.Screen name="vendor/[id]" options={{ presentation: "card" }} />
-          <Stack.Screen name="checkout" options={{ presentation: "card" }} />
-          <Stack.Screen name="kyc" options={{ presentation: "modal" }} />
-          <Stack.Screen name="analytics" options={{ presentation: "card" }} />
-          <Stack.Screen name="notifications" options={{ presentation: "card" }} />
-          <Stack.Screen name="wishlist" options={{ presentation: "card" }} />
-        </>
-      )}
+      <Stack.Screen name="login" />
+      <Stack.Screen name="register" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="product/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen name="vendor/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen name="checkout" options={{ presentation: "card" }} />
+      <Stack.Screen name="kyc" options={{ presentation: "modal" }} />
+      <Stack.Screen name="analytics" options={{ presentation: "card" }} />
+      <Stack.Screen name="notifications" options={{ presentation: "card" }} />
+      <Stack.Screen name="wishlist" options={{ presentation: "card" }} />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="help-support" />
     </Stack>
   );
 }
