@@ -83,6 +83,18 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
+export async function updateUserProfile(data: { name: string; phone?: string | null }): Promise<SafeUser> {
+  return api.put<SafeUser>("/users/me", data);
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  return api.post<{ message: string }>("/users/me/password", { currentPassword, newPassword });
+}
+
+export async function deleteOwnAccount(): Promise<{ message: string }> {
+  return api.delete<{ message: string }>("/users/me");
+}
+
 export async function uploadProductImage(productId: string, imageUri: string): Promise<{ imageUrl: string }> {
   const formData = new FormData();
   const filename = imageUri.split("/").pop() || "image.jpg";

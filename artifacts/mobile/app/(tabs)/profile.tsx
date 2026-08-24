@@ -152,15 +152,11 @@ export default function ProfileScreen() {
         )}
 
         <MenuItem icon="bell" label="Notifications" onPress={() => router.push("/notifications" as any)} colors={colors} />
-        <MenuItem icon="settings" label="Settings" onPress={() => {}} colors={colors} />
-        <MenuItem icon="help-circle" label="Help & Support" onPress={() => {}} colors={colors} />
+        <MenuItem icon="settings" label="Settings" onPress={() => router.push("/settings" as any)} colors={colors} />
+        <MenuItem icon="help-circle" label="Help & Support" onPress={() => router.push("/help-support" as any)} colors={colors} />
       </View>
 
-      {/* Test accounts hint */}
-      <View style={s(colors).hintCard}>
-        <Feather name="info" size={14} color={colors.mutedForeground} />
-        <Text style={s(colors).hintText}>Demo: admin@legazpimarket.ph / staff@groyon.ph / customer@gmail.com (pass: role+123)</Text>
-      </View>
+
 
       {/* Sign out */}
       <Pressable style={s(colors).logoutBtn} onPress={handleLogout}>

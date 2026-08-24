@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { useStore } from "@/context/StoreContext";
 
 const ID_TYPES = [
   "Philippine National ID",
@@ -38,7 +39,8 @@ export default function KYCScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, updateKycStatus } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const { submitKyc } = useStore();
 
   const [step, setStep] = useState(1);
   const [fullName, setFullName] = useState(user?.name ?? "");
@@ -92,22 +94,33 @@ export default function KYCScreen() {
     }, 2500);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!faceScanned) {
       Alert.alert("Face Scan Required", "Please complete the face verification step.");
       return;
     }
     setVerifying(true);
-    setTimeout(() => {
-      updateKycStatus(true);
+    try {
+      await submitKyc({
+        firstName: fullName.split(" ")[0] || fullName,
+        lastName: fullName.split(" ").slice(1).join(" ") || "",
+        birthDate: "",
+        address,
+        idType,
+        idNumber,
+      });
+      await refreshUser();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        "KYC Verified!",
-        "Your identity has been successfully verified. You can now place orders.",
+        "KYC Submitted!",
+        "Your verification is being reviewed. This usually takes 1-2 business days.",
         [{ text: "Continue Shopping", onPress: () => router.replace("/(tabs)" as any) }]
       );
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to submit KYC");
+    } finally {
       setVerifying(false);
-    }, 2000);
+    }
   };
 
   return (
