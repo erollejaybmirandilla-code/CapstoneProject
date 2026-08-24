@@ -1,13 +1,11 @@
 {
   "expo": {
-    "name": "Capstone Project",
-    "slug": "capstoneproject",
+    "name": "Legazpi Souvenir Market",
+    "slug": "legazpi-souvenir-market",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "capstoneproject",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
@@ -15,27 +13,31 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.capstoneproject.app"
+      "bundleIdentifier": "com.legazpi.souvenirmarket"
     },
     "android": {
-      "package": "com.capstoneproject.app"
+      "package": "com.legazpi.souvenirmarket",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FAFAF8"
+      }
     },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://exp.host"
-        }
-      ],
+      "expo-router",
       "expo-font",
       "expo-web-browser"
     ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+    "extra": {
+      "eas": {
+        "projectId": "414d65cd-b95a-47c5-86e4-73990d89f05c"
+      }
+    },
+    "owner": "e.mirandilla0",
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

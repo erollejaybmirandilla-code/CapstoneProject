@@ -2,18 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 const getBaseUrl = () => {
-  // For native platforms (iOS/Android)
   if (Platform.OS !== "web") {
-    // Use environment variable if set (for production or custom development)
-    if (process.env.EXPO_PUBLIC_API_URL) {
-      return process.env.EXPO_PUBLIC_API_URL;
+    if (!process.env.EXPO_PUBLIC_API_URL) {
+      throw new Error("EXPO_PUBLIC_API_URL is not set. Please configure it in your environment or .env file.");
     }
-    // Default: localhost for local development
-    // In production, this should be your deployed API URL
-    return "http://localhost:8080/api";
+    return process.env.EXPO_PUBLIC_API_URL;
   }
-  
-  // For web platform - use relative path (proxied by Expo dev server)
   return "/api";
 };
 
@@ -59,21 +53,28 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (sessionToken) {
     headers["Authorization"] = `Bearer ${sessionToken}`;
-    headers["X-Session-Token"] = sessionToken;
+    headers["X-Session-Token"] = sessionToken || "";
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-    credentials: "include",
-  });
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(data.error || `HTTP ${res.status}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Request failed" }));
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    return res.json();
+  } catch (err: any) {
+    if (err.message === "Failed to fetch" || err.name === "TypeError") {
+      throw new Error("Network error. Please check your internet connection and try again.");
+    }
+    throw err;
   }
-
-  return res.json();
 }
 
 export const api = {

@@ -21,15 +21,19 @@ type StoreContextType = {
   selectedProduct: Product | null;
 
   isLoadingProducts: boolean;
+  productsError: string | null;
   isLoadingOrders: boolean;
+  ordersError: string | null;
   isLoadingUsers: boolean;
   isManagingProduct: boolean;
 
   fetchProducts: (params?: Record<string, string>) => Promise<Product[]>;
+  retryProducts: () => Promise<void>;
   fetchProduct: (id: string) => Promise<Product | null>;
   fetchVendors: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchOrders: (params?: Record<string, string>) => Promise<void>;
+  retryOrders: () => Promise<void>;
   fetchInventory: (params?: Record<string, string>) => Promise<void>;
   fetchNotifications: () => Promise<void>;
   fetchWishlist: () => Promise<void>;
@@ -87,7 +91,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [selectedUser, setSelectedUser] = useState<(SafeUser & { orderStats?: { totalOrders: number; totalSpent: number } }) | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isManagingProduct, setIsManagingProduct] = useState(false);
 
@@ -114,6 +120,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProducts = useCallback(async (params: Record<string, string> = {}) => {
     setIsLoadingProducts(true);
+    setProductsError(null);
     try {
       const query = new URLSearchParams(params).toString();
       const data = await api.get<{ products: Product[]; total: number }>(`/products${query ? `?${query}` : ""}`);
@@ -121,12 +128,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setProducts(data.products);
       }
       return data.products;
-    } catch {
+    } catch (e: any) {
+      setProductsError(e.message || "Failed to load products");
       return [];
     } finally {
       setIsLoadingProducts(false);
     }
   }, []);
+
+  const retryProducts = useCallback(async () => {
+    await fetchProducts();
+  }, [fetchProducts]);
 
   const fetchProduct = useCallback(async (id: string): Promise<Product | null> => {
     try {
@@ -152,14 +164,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const fetchOrders = useCallback(async (params: Record<string, string> = {}) => {
     setIsLoadingOrders(true);
+    setOrdersError(null);
     try {
       const query = new URLSearchParams(params).toString();
       const data = await api.get<{ orders: Order[] }>(`/orders${query ? `?${query}` : ""}`);
       setOrders(data.orders);
-    } catch {} finally {
+    } catch (e: any) {
+      setOrdersError(e.message || "Failed to load orders");
+    } finally {
       setIsLoadingOrders(false);
     }
   }, []);
+
+  const retryOrders = useCallback(async () => {
+    await fetchOrders();
+  }, [fetchOrders]);
 
   const fetchInventory = useCallback(async (params: Record<string, string> = {}) => {
     try {
@@ -359,9 +378,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       products, vendors, categories, orders, inventory,
       notifications, wishlist, analytics, kycStatus,
       adminUsers, selectedUser, selectedProduct,
-      isLoadingProducts, isLoadingOrders, isLoadingUsers, isManagingProduct,
-      fetchProducts, fetchProduct, fetchVendors, fetchCategories,
-      fetchOrders, fetchInventory, fetchNotifications, fetchWishlist,
+      isLoadingProducts, productsError, isLoadingOrders, ordersError, isLoadingUsers, isManagingProduct,
+      fetchProducts, retryProducts, fetchProduct, fetchVendors, fetchCategories,
+      fetchOrders, retryOrders, fetchInventory, fetchNotifications, fetchWishlist,
       fetchAnalytics, fetchKycStatus,
       fetchAdminUsers, fetchUserDetails, updateUserRole, updateUserVerification, deleteUser,
       createProduct, updateProduct, deleteProduct, fetchProductForEdit, uploadImage, removeProductImage,

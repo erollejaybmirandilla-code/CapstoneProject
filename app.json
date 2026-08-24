@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "70bb50fa-ed93-4169-b3d6-372617ca3046"
+      }
+    },
+    "android": {
+      "package": "com.capstone2.workspace"
+    },
+    "ios": {
+      "bundleIdentifier": "com.capstone2.workspace",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

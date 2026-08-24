@@ -29,7 +29,7 @@ type SortOption = "name" | "price_asc" | "price_desc" | "rating" | "stock";
 export default function CatalogScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { products, vendors } = useStore();
+  const { products, vendors, isLoadingProducts, productsError, retryProducts } = useStore();
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
@@ -39,6 +39,7 @@ export default function CatalogScreen() {
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [showBestSellers, setShowBestSellers] = useState(false);
   const [showSeasonal, setShowSeasonal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -59,6 +60,12 @@ export default function CatalogScreen() {
       if (sort === "stock") return b.stock - a.stock;
       return a.name.localeCompare(b.name);
     });
+
+  const handleRetry = async () => {
+    setRefreshing(true);
+    await retryProducts();
+    setRefreshing(false);
+  };
 
   return (
     <View style={[s(colors).container]}>
@@ -91,81 +98,104 @@ export default function CatalogScreen() {
         )}
       </View>
 
-      {/* Category scroll */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s(colors).catScroll} contentContainerStyle={{ paddingHorizontal: 18, gap: 10 }}>
-        {CATEGORIES.map((cat) => (
-          <Pressable
-            key={cat}
-            style={[s(colors).catChip, category === cat && s(colors).catChipActive]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[s(colors).catLabel, category === cat && s(colors).catLabelActive]} numberOfLines={1}>
-              {cat}
-            </Text>
+      {/* Error state */}
+      {productsError && !isLoadingProducts && (
+        <View style={s(colors).errorState}>
+          <Feather name="wifi-off" size={40} color={colors.mutedForeground} />
+          <Text style={s(colors).errorStateTitle}>Connection Issue</Text>
+          <Text style={s(colors).errorStateText}>{productsError}</Text>
+          <Pressable style={s(colors).retryBtn} onPress={handleRetry}>
+            <Text style={s(colors).retryBtnText}>Try Again</Text>
           </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* Filters panel */}
-      {showFilters && (
-        <View style={s(colors).filterPanel}>
-          <Text style={s(colors).filterSectionTitle}>Sort by</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {([["rating", "Top Rated"], ["price_asc", "Price: Low to High"], ["price_desc", "Price: High to Low"], ["name", "Name"], ["stock", "In Stock"]] as [SortOption, string][]).map(([val, label]) => (
-              <Pressable key={val} style={[s(colors).sortChip, sort === val && s(colors).sortChipActive]} onPress={() => setSort(val)}>
-                <Text style={[s(colors).sortLabel, sort === val && s(colors).sortLabelActive]}>{label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <Text style={[s(colors).filterSectionTitle, { marginTop: 10 }]}>Vendor</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            <Pressable style={[s(colors).sortChip, vendorFilter === "all" && s(colors).sortChipActive]} onPress={() => setVendorFilter("all")}>
-              <Text style={[s(colors).sortLabel, vendorFilter === "all" && s(colors).sortLabelActive]}>All Vendors</Text>
-            </Pressable>
-            {vendors.map((v) => (
-              <Pressable key={v.id} style={[s(colors).sortChip, vendorFilter === v.id && s(colors).sortChipActive]} onPress={() => setVendorFilter(v.id)}>
-                <Text style={[s(colors).sortLabel, vendorFilter === v.id && s(colors).sortLabelActive]}>{v.name}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-            <Pressable
-              style={[s(colors).toggleChip, showBestSellers && s(colors).toggleChipActive]}
-              onPress={() => setShowBestSellers((v) => !v)}
-            >
-              <Feather name="trending-up" size={12} color={showBestSellers ? "#fff" : colors.primary} />
-              <Text style={[s(colors).sortLabel, showBestSellers && s(colors).sortLabelActive]}>Best Sellers</Text>
-            </Pressable>
-            <Pressable
-              style={[s(colors).toggleChip, showSeasonal && s(colors).toggleChipActive]}
-              onPress={() => setShowSeasonal((v) => !v)}
-            >
-              <Feather name="sun" size={12} color={showSeasonal ? "#fff" : colors.primary} />
-              <Text style={[s(colors).sortLabel, showSeasonal && s(colors).sortLabelActive]}>Seasonal</Text>
-            </Pressable>
-          </View>
         </View>
       )}
 
-      {/* Results count */}
-      <Text style={s(colors).resultCount}>{filtered.length} products found</Text>
+      {/* Loading state */}
+      {isLoadingProducts && products.length === 0 && (
+        <View style={s(colors).loadingState}>
+          <Text style={s(colors).loadingText}>Loading products...</Text>
+        </View>
+      )}
 
-      {/* Product Grid */}
-      <ScrollView contentContainerStyle={s(colors).grid} showsVerticalScrollIndicator={false}>
-        {filtered.map((item) => (
-          <View key={item.id} style={s(colors).gridItem}>
-            <ProductCard product={item} />
-          </View>
-        ))}
-        {filtered.length === 0 && (
-          <View style={s(colors).empty}>
-            <Feather name="search" size={40} color={colors.mutedForeground} />
-            <Text style={s(colors).emptyText}>No products found</Text>
-            <Text style={s(colors).emptySubText}>Adjust your filters</Text>
-          </View>
-        )}
-        <View style={{ height: 100 }} />
-      </ScrollView>
+      {!productsError && (
+        <>
+          {/* Category scroll */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s(colors).catScroll} contentContainerStyle={{ paddingHorizontal: 18, gap: 10 }}>
+            {CATEGORIES.map((cat) => (
+              <Pressable
+                key={cat}
+                style={[s(colors).catChip, category === cat && s(colors).catChipActive]}
+                onPress={() => setCategory(cat)}
+              >
+                <Text style={[s(colors).catLabel, category === cat && s(colors).catLabelActive]} numberOfLines={1}>
+                  {cat}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {/* Filters panel */}
+          {showFilters && (
+            <View style={s(colors).filterPanel}>
+              <Text style={s(colors).filterSectionTitle}>Sort by</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {([["rating", "Top Rated"], ["price_asc", "Price: Low to High"], ["price_desc", "Price: High to Low"], ["name", "Name"], ["stock", "In Stock"]] as [SortOption, string][]).map(([val, label]) => (
+                  <Pressable key={val} style={[s(colors).sortChip, sort === val && s(colors).sortChipActive]} onPress={() => setSort(val)}>
+                    <Text style={[s(colors).sortLabel, sort === val && s(colors).sortLabelActive]}>{label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Text style={[s(colors).filterSectionTitle, { marginTop: 10 }]}>Vendor</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                <Pressable style={[s(colors).sortChip, vendorFilter === "all" && s(colors).sortChipActive]} onPress={() => setVendorFilter("all")}>
+                  <Text style={[s(colors).sortLabel, vendorFilter === "all" && s(colors).sortLabelActive]}>All Vendors</Text>
+                </Pressable>
+                {vendors.map((v) => (
+                  <Pressable key={v.id} style={[s(colors).sortChip, vendorFilter === v.id && s(colors).sortChipActive]} onPress={() => setVendorFilter(v.id)}>
+                    <Text style={[s(colors).sortLabel, vendorFilter === v.id && s(colors).sortLabelActive]}>{v.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                <Pressable
+                  style={[s(colors).toggleChip, showBestSellers && s(colors).toggleChipActive]}
+                  onPress={() => setShowBestSellers((v) => !v)}
+                >
+                  <Feather name="trending-up" size={12} color={showBestSellers ? "#fff" : colors.primary} />
+                  <Text style={[s(colors).sortLabel, showBestSellers && s(colors).sortLabelActive]}>Best Sellers</Text>
+                </Pressable>
+                <Pressable
+                  style={[s(colors).toggleChip, showSeasonal && s(colors).toggleChipActive]}
+                  onPress={() => setShowSeasonal((v) => !v)}
+                >
+                  <Feather name="sun" size={12} color={showSeasonal ? "#fff" : colors.primary} />
+                  <Text style={[s(colors).sortLabel, showSeasonal && s(colors).sortLabelActive]}>Seasonal</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* Results count */}
+          <Text style={s(colors).resultCount}>{filtered.length} products found</Text>
+
+          {/* Product Grid */}
+          <ScrollView contentContainerStyle={s(colors).grid} showsVerticalScrollIndicator={false}>
+            {filtered.map((item) => (
+              <View key={item.id} style={s(colors).gridItem}>
+                <ProductCard product={item} />
+              </View>
+            ))}
+            {filtered.length === 0 && !isLoadingProducts && (
+              <View style={s(colors).empty}>
+                <Feather name="search" size={40} color={colors.mutedForeground} />
+                <Text style={s(colors).emptyText}>No products found</Text>
+                <Text style={s(colors).emptySubText}>Adjust your filters</Text>
+              </View>
+            )}
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </>
+      )}
     </View>
   );
 }
@@ -259,4 +289,11 @@ const s = (colors: ReturnType<typeof useColors>) =>
     empty: { width: "100%", alignItems: "center", paddingVertical: 60, gap: 8 },
     emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground },
     emptySubText: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    loadingState: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+    loadingText: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    errorState: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingVertical: 60, gap: 12 },
+    errorStateTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground, marginTop: 8 },
+    errorStateText: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+    retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+    retryBtnText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
   });

@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,9 +33,10 @@ export default function OrdersScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { orders, updateOrderStatus } = useStore();
+  const { orders, isLoadingOrders, ordersError, retryOrders, updateOrderStatus } = useStore();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [retrying, setRetrying] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
@@ -46,6 +48,12 @@ export default function OrdersScreen() {
 
   const isStaff = user.role === "admin" || user.role === "staff";
   const activeCount = orders.filter(o => o.status === "pending" || o.status === "preparing" || o.status === "confirmed").length;
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await retryOrders();
+    setRetrying(false);
+  };
 
   return (
     <View style={[s(colors).container]}>
@@ -85,7 +93,16 @@ export default function OrdersScreen() {
       </ScrollView>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 100 }}>
-        {filtered.length === 0 ? (
+        {ordersError && !isLoadingOrders && !retrying ? (
+          <View style={s(colors).errorState}>
+            <Feather name="wifi-off" size={40} color={colors.mutedForeground} />
+            <Text style={s(colors).errorStateTitle}>Connection Issue</Text>
+            <Text style={s(colors).errorStateText}>{ordersError}</Text>
+            <Pressable style={s(colors).retryBtn} onPress={handleRetry}>
+              <Text style={s(colors).retryBtnText}>Try Again</Text>
+            </Pressable>
+          </View>
+        ) : filtered.length === 0 ? (
           <View style={s(colors).empty}>
             <Feather name="clipboard" size={48} color={colors.mutedForeground} />
             <Text style={s(colors).emptyText}>No orders found</Text>
@@ -139,4 +156,9 @@ const s = (colors: ReturnType<typeof useColors>) =>
     empty: { alignItems: "center", paddingTop: 80, gap: 10 },
     emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground },
     emptySub: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    errorState: { alignItems: "center", paddingTop: 80, gap: 12 },
+    errorStateTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground },
+    errorStateText: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center", paddingHorizontal: 32 },
+    retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+    retryBtnText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
   });

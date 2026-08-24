@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 21.8.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://slowly-influences-sleeping-kings.trycloudflare.com/api"
+      },
+      "autoIncrement": true
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://slowly-influences-sleeping-kings.trycloudflare.com/api"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

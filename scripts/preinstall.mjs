@@ -10,7 +10,7 @@ for (const f of ["package-lock.json", "yarn.lock"]) {
 }
 
 const userAgent = process.env.npm_config_user_agent || "";
-if (!userAgent.includes("pnpm")) {
+if (!userAgent.includes("pnpm") && !process.env.EAS_BUILD) {
   console.error("Use pnpm instead");
   process.exit(1);
 }
