@@ -244,7 +244,18 @@ export default function ProductManagementScreen() {
   const handleRemoveImage = async (productId: string, imageIndex: number) => {
     Alert.alert("Remove Image", "Are you sure you want to remove this image?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => removeProductImage(productId, imageIndex) },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await removeProductImage(productId, imageIndex);
+            Alert.alert("Success", "Image removed successfully");
+          } catch (err: any) {
+            Alert.alert("Error", err.message || "Failed to remove image");
+          }
+        },
+      },
     ]);
   };
 

@@ -368,9 +368,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeProductImage = useCallback(async (productId: string, imageIndex: number) => {
-    const product = await api.delete<Product>(`/products/${productId}/images/${imageIndex}`);
-    setProducts(prev => prev.map(p => p.id === productId ? product : p));
-    setSelectedProduct(product);
+    try {
+      const product = await api.delete<Product>(`/products/${productId}/images/${imageIndex}`);
+      setProducts(prev => prev.map(p => p.id === productId ? product : p));
+      setSelectedProduct(product);
+    } catch (e: any) {
+      console.error("Failed to remove product image:", e);
+      throw e;
+    }
   }, []);
 
   return (

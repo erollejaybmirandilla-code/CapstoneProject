@@ -200,7 +200,9 @@ router.delete("/:id/images/:imageIndex", requireRole("admin", "staff"), async (r
     await fs.unlink(filePath).catch(() => {});
   }
 
-  res.json({ images: updatedImages });
+  const [updated] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id as string)).limit(1);
+  const [enriched] = await enrichProducts([updated]);
+  res.json(enriched);
 });
 
 export default router;
